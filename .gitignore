@@ -1,0 +1,24 @@
+# Test and build output
+/out/
+/TestResults/
+testResults.xml
+coverage.xml
+*.log
+
+# Generated reports and onboarding artefacts (may contain personal data)
+/reports/
+/delivery/
+/audit/
+*.secret
+
+# Local configuration and credentials
+.env
+*.auth
+!*.auth.example
+
+# Editors and OS files
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
