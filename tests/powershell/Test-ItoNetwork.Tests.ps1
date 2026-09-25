@@ -181,7 +181,8 @@ Describe 'Network probes against real sockets' {
         $port = $listener.LocalEndpoint.Port
         $listener.Stop()
         InModuleScope ItOpsToolkit -Parameters @{ Port = $port } {
-            $result = Test-ItoTcpConnection -Address '127.0.0.1' -Port $Port -TimeoutMilliseconds 2000
+            # Windows retries a refused connection before reporting it, so allow more than the retries take.
+            $result = Test-ItoTcpConnection -Address '127.0.0.1' -Port $Port -TimeoutMilliseconds 8000
             $result.Connected | Should -BeFalse
             $result.Reason | Should -Be 'Refused'
         }
