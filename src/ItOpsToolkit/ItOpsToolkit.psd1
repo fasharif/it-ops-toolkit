@@ -6,13 +6,14 @@
     Author               = 'Farah Sharif'
     CompanyName          = 'Farah Sharif'
     Copyright            = '(c) 2026 Farah Sharif. Released under the MIT licence.'
-    Description          = 'Help-desk automation: Active Directory onboarding and offboarding, Windows health reports and layered network troubleshooting.'
+    Description          = 'Help-desk automation: Active Directory onboarding, offboarding and lockout tracing, Windows health reports and layered network troubleshooting.'
     PowerShellVersion    = '5.1'
     FunctionsToExport    = @(
         'New-ItoUser'
         'Remove-ItoUser'
         'Get-ItoHealthReport'
         'Test-ItoNetwork'
+        'Get-ItoLockoutSource'
         'New-ItoRandomPassword'
     )
     CmdletsToExport      = @()

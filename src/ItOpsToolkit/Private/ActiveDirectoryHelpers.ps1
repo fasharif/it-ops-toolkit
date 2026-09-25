@@ -8,7 +8,7 @@ function Assert-ItoActiveDirectory {
 
     $required = @(
         'Get-ADUser', 'New-ADUser', 'Set-ADUser', 'Disable-ADAccount', 'Move-ADObject',
-        'Add-ADGroupMember', 'Remove-ADGroupMember', 'Get-ADGroup', 'Get-ADOrganizationalUnit'
+        'Add-ADGroupMember', 'Remove-ADGroupMember', 'Get-ADGroup', 'Get-ADOrganizationalUnit', 'Get-ADDomain'
     )
     $missing = @($required | Where-Object { -not (Get-Command -Name $_ -ErrorAction SilentlyContinue) })
     if ($missing.Count -gt 0 -and (Get-Module -ListAvailable -Name 'ActiveDirectory')) {

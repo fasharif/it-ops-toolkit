@@ -17,6 +17,7 @@ $defaultViews = @{
     'ItOpsToolkit.HealthCheck'       = @('Name', 'Status', 'Value', 'Threshold')
     'ItOpsToolkit.NetworkDiagnosis'  = @('Target', 'Port', 'Healthy', 'Diagnosis')
     'ItOpsToolkit.NetworkLayer'      = @('Layer', 'Status', 'Detail')
+    'ItOpsToolkit.LockoutReport'     = @('SamAccountName', 'LockedOut', 'AccountLockoutTime', 'Sources', 'Advice')
 }
 foreach ($typeName in $defaultViews.Keys) {
     Update-TypeData -TypeName $typeName -DefaultDisplayPropertySet $defaultViews[$typeName] -Force

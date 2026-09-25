@@ -119,4 +119,14 @@ function Get-ADOrganizationalUnit {
     throw 'Get-ADOrganizationalUnit stub was called without a mock.'
 }
 
+function Get-ADDomain {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)] [object] $Identity,
+        [string] $Server,
+        [pscredential] $Credential
+    )
+    throw 'Get-ADDomain stub was called without a mock.'
+}
+
 Export-ModuleMember -Function *
