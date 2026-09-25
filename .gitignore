@@ -22,3 +22,8 @@ coverage.xml
 *.swp
 .DS_Store
 Thumbs.db
+
+# Python tool caches
+__pycache__/
+.mypy_cache/
+.ruff_cache/

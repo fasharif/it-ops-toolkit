@@ -35,8 +35,10 @@ REQUIRED_COLUMNS = ("EmployeeId", "GivenName", "Surname", "Department")
 OPTIONAL_COLUMNS = ("Title", "Manager", "StartDate")
 EMPLOYEE_ID = re.compile(r"^[A-Za-z0-9-]{1,16}$")
 ACCOUNT_NAME = re.compile(r"^[A-Za-z0-9._-]{1,20}$")
-NAME_PUNCTUATION = frozenset(" .'-’")
+NAME_PUNCTUATION = frozenset(" .'-\u2019")  # \u2019 is the typographic apostrophe
 SEPARATOR = "\x1f"
+MAX_NAME_LENGTH = 64
+MAX_TITLE_LENGTH = 64
 
 
 def ascii_name(name: str) -> str:
@@ -47,7 +49,7 @@ def ascii_name(name: str) -> str:
 
 def is_person_name(name: str) -> bool:
     """Letters, combining marks, spaces, full stops, hyphens and apostrophes; 1-64 characters."""
-    if not 1 <= len(name) <= 64:
+    if not 1 <= len(name) <= MAX_NAME_LENGTH:
         return False
     if not unicodedata.category(name[0]).startswith("L"):
         return False
@@ -63,35 +65,37 @@ def has_control_characters(value: str) -> bool:
     return any(unicodedata.category(ch) == "Cc" for ch in value)
 
 
-def row_problems(row: dict[str, str], seen_ids: set[str]) -> list[str]:
-    """Return the problems with one row. An empty list means the row is valid."""
-    problems: list[str] = []
-    employee_id = row["EmployeeId"]
+def employee_id_problems(employee_id: str) -> list[str]:
     if not employee_id:
-        problems.append("EmployeeId is required.")
-    elif not EMPLOYEE_ID.match(employee_id):
-        problems.append(f"EmployeeId '{employee_id}' must be 1-16 letters, digits or hyphens.")
+        return ["EmployeeId is required."]
+    if not EMPLOYEE_ID.match(employee_id):
+        return [f"EmployeeId '{employee_id}' must be 1-16 letters, digits or hyphens."]
+    return []
 
-    for field in ("GivenName", "Surname"):
-        value = row[field]
-        if not value:
-            problems.append(f"{field} is required.")
-        elif not is_person_name(value):
-            problems.append(f"{field} '{value}' contains characters that are not allowed in a name.")
-        elif not ascii_name(value):
-            problems.append(
-                f"{field} '{value}' has no letters that can be used in an account name. "
-                "Add a Latin-script spelling to the HR record."
-            )
 
+def name_problems(field: str, value: str) -> list[str]:
+    if not value:
+        return [f"{field} is required."]
+    if not is_person_name(value):
+        return [f"{field} '{value}' contains characters that are not allowed in a name."]
+    if not ascii_name(value):
+        return [
+            f"{field} '{value}' has no letters that can be used in an account name. "
+            "Add a Latin-script spelling to the HR record."
+        ]
+    return []
+
+
+def other_field_problems(row: dict[str, str]) -> list[str]:
+    problems: list[str] = []
     if not row["Department"]:
         problems.append("Department is required.")
     elif has_control_characters(row["Department"]):
         problems.append("Department must not contain control characters.")
 
     title = row["Title"]
-    if len(title) > 64 or has_control_characters(title):
-        problems.append("Title must be at most 64 characters with no control characters.")
+    if len(title) > MAX_TITLE_LENGTH or has_control_characters(title):
+        problems.append(f"Title must be at most {MAX_TITLE_LENGTH} characters with no control characters.")
 
     manager = row["Manager"]
     if manager and not ACCOUNT_NAME.match(manager):
@@ -103,11 +107,23 @@ def row_problems(row: dict[str, str], seen_ids: set[str]) -> list[str]:
             datetime.datetime.strptime(start_date, "%Y-%m-%d")
         except ValueError:
             problems.append(f"StartDate '{start_date}' must use the format yyyy-MM-dd.")
+    return problems
 
+
+def row_problems(row: dict[str, str], seen_ids: set[str]) -> list[str]:
+    """Return the problems with one row. An empty list means the row is valid.
+
+    A duplicate employee ID is only reported for a row that is otherwise valid, as in the
+    PowerShell module, so the first valid occurrence is kept.
+    """
+    problems = employee_id_problems(row["EmployeeId"])
+    problems += name_problems("GivenName", row["GivenName"])
+    problems += name_problems("Surname", row["Surname"])
+    problems += other_field_problems(row)
     if not problems:
-        key = employee_id.lower()
+        key = row["EmployeeId"].lower()
         if key in seen_ids:
-            problems.append(f"EmployeeId '{employee_id}' appears more than once in this feed.")
+            problems.append(f"EmployeeId '{row['EmployeeId']}' appears more than once in this feed.")
         seen_ids.add(key)
     return problems
 
@@ -115,10 +131,7 @@ def row_problems(row: dict[str, str], seen_ids: set[str]) -> list[str]:
 def convert(rows: Iterable[dict[str, str | None]]) -> Iterable[str]:
     seen_ids: set[str] = set()
     for number, raw in enumerate(rows, start=1):
-        row = {
-            column: (raw.get(column) or "").strip()
-            for column in REQUIRED_COLUMNS + OPTIONAL_COLUMNS
-        }
+        row = {column: (raw.get(column) or "").strip() for column in REQUIRED_COLUMNS + OPTIONAL_COLUMNS}
         problems = row_problems(row, seen_ids)
         fields = [str(number)]
         fields += [row[column] for column in REQUIRED_COLUMNS]
