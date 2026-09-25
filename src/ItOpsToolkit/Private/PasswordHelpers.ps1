@@ -70,7 +70,7 @@ function Assert-ItoDeliveryCertificate {
     }
     catch {
         throw ('The delivery certificate cannot be used for encryption: {0} ' +
-            'It needs the Document Encryption enhanced key usage (1.3.6.1.4.1.311.80.1) and the Key Encipherment key usage.') -f $_.Exception.Message
+            'It needs the Document Encryption enhanced key usage (1.3.6.1.4.1.311.80.1) and the Key Encipherment key usage.') -f $_.Exception.Message.Trim()
     }
 }
 

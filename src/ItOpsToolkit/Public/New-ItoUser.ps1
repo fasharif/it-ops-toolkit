@@ -296,7 +296,7 @@ function New-ItoUser {
                         Add-ADGroupMember -Identity $group -Members $samAccountName @adParameters -ErrorAction Stop
                     }
                     catch {
-                        $warnings.Add("Could not add the account to group '$group': $($_.Exception.Message)")
+                        $warnings.Add("Could not add the account to group '$group': $($_.Exception.Message.Trim())")
                     }
                 }
 
@@ -306,7 +306,7 @@ function New-ItoUser {
                             -UserPrincipalName $userPrincipalName -Password $password -Certificate $DeliveryCertificate
                     }
                     catch {
-                        $warnings.Add("The password delivery file could not be written: $($_.Exception.Message) The password is still available on the InitialPassword property of this result.")
+                        $warnings.Add("The password delivery file could not be written: $($_.Exception.Message.Trim()) The password is still available on the InitialPassword property of this result.")
                     }
                 }
 
@@ -314,7 +314,7 @@ function New-ItoUser {
             }
             catch {
                 $result.Status = 'Failed'
-                $result.Message = $_.Exception.Message
+                $result.Message = $_.Exception.Message.Trim()
                 Write-Warning ('Row {0} failed: {1}' -f $rowNumber, $result.Message)
             }
 

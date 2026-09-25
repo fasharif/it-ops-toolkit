@@ -62,7 +62,7 @@ function Get-ItoOnboardingTargetProblem {
             $Cache[$key] = $null
         }
         catch {
-            $Cache[$key] = "The OU '$Ou' from the configuration could not be found: $($_.Exception.Message)"
+            $Cache[$key] = "The OU '$Ou' from the configuration could not be found: $($_.Exception.Message.Trim())"
         }
     }
     if ($null -ne $Cache[$key]) {

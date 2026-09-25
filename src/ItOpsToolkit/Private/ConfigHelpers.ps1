@@ -52,7 +52,7 @@ function Read-ItoOnboardingConfig {
         $json = $raw | ConvertFrom-Json -ErrorAction Stop
     }
     catch {
-        throw "Could not read the configuration file '$Path': $($_.Exception.Message)"
+        throw "Could not read the configuration file '$Path': $($_.Exception.Message.Trim())"
     }
 
     $data = ConvertTo-ItoHashtable -InputObject $json

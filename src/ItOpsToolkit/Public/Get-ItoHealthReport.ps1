@@ -106,7 +106,7 @@ function Get-ItoHealthReport {
             }
         }
         catch {
-            $checks.Add((ConvertTo-ItoHealthCheck -Name $collector.Name -Category $collector.Category -Status 'Unknown' -Detail "The data could not be read: $($_.Exception.Message)"))
+            $checks.Add((ConvertTo-ItoHealthCheck -Name $collector.Name -Category $collector.Category -Status 'Unknown' -Detail "The data could not be read: $($_.Exception.Message.Trim())"))
         }
     }
 

@@ -43,7 +43,7 @@ function Read-ItoHealthThreshold {
         $data = ConvertTo-ItoHashtable -InputObject (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop)
     }
     catch {
-        throw "Could not read the threshold file '$Path': $($_.Exception.Message)"
+        throw "Could not read the threshold file '$Path': $($_.Exception.Message.Trim())"
     }
     if ($data -isnot [hashtable]) {
         throw "The threshold file '$Path' must contain a JSON object."

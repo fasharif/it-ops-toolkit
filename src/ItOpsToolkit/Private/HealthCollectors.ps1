@@ -155,7 +155,7 @@ function Get-ItoBitLockerData {
     catch {
         [pscustomobject]@{
             Available = $false
-            Reason    = "BitLocker status could not be read ($($_.Exception.Message)). Run the report as an administrator."
+            Reason    = "BitLocker status could not be read ($($_.Exception.Message.Trim())). Run the report as an administrator."
         }
     }
 }

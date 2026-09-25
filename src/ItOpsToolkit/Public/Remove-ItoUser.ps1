@@ -224,8 +224,8 @@ function Remove-ItoUser {
         }
         catch {
             $result.Status = 'Failed'
-            $result.Message = $_.Exception.Message
-            Write-Error -Message ("Offboarding {0} failed: {1}" -f $Identity, $_.Exception.Message) -Category InvalidOperation -TargetObject $Identity
+            $result.Message = $_.Exception.Message.Trim()
+            Write-Error -Message ("Offboarding {0} failed: {1}" -f $Identity, $_.Exception.Message.Trim()) -Category InvalidOperation -TargetObject $Identity
         }
 
         $result.Actions = $actions.ToArray()
