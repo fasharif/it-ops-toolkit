@@ -1,0 +1,7 @@
+EmployeeId,GivenName,Surname,Department,Title,Manager,StartDate
+E20001,Omar,Haddad,sales,Account Manager,lina.haddad,2026-11-02
+E20002,Noor,Khan,Marketing,,,
+E20003,Priya,Nair,IT,,no.such.manager,
+E20003,Priya,Nair,IT,,,
+E20004,سارة,Ali,Finance,,,
+E20005,Christopher,Montgomery-Smithson,Finance,,,
