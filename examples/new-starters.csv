@@ -1,0 +1,6 @@
+EmployeeId,GivenName,Surname,Department,Title,Manager,StartDate
+E10421,Sara,Ali,Finance,Accounts Assistant,,2026-10-05
+E10422,Sara,Ali,Sales,Sales Executive,,2026-10-05
+E10423,José,García-López,IT,Service Desk Analyst,,2026-10-12
+E10424,Liam,O'Brien,Human Resources,HR Advisor,,2026-10-12
+E10425,Aisha,Al Mansoori,Finance,"Analyst, Financial Planning",,2026-10-19
