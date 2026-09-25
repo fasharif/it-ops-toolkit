@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/fasharif/it-ops-toolkit/config/onboarding.schema.json",
+  "title": "it-ops-toolkit onboarding configuration",
+  "description": "Maps departments to OUs and groups for onboarding, and names the OU for disabled accounts.",
+  "type": "object",
+  "required": ["upnSuffix", "disabledOu", "departments"],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^\\$": {}
+  },
+  "properties": {
+    "upnSuffix": {
+      "description": "DNS suffix for user principal names and mail addresses, for example corp.example.com.",
+      "type": "string",
+      "pattern": "^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$"
+    },
+    "samAccountNameFormat": {
+      "description": "first.last (sara.ali) or flast (sali). Defaults to first.last.",
+      "enum": ["first.last", "flast"]
+    },
+    "disabledOu": {
+      "description": "Distinguished name of the OU that offboarded accounts are moved to.",
+      "$ref": "#/$defs/distinguishedName"
+    },
+    "defaultGroups": {
+      "description": "Groups every new starter joins.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/groupName" },
+      "uniqueItems": true
+    },
+    "departments": {
+      "description": "One entry per department name, exactly as it appears in the HR feed (matched without regard to case).",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["ou"],
+        "additionalProperties": false,
+        "properties": {
+          "ou": { "$ref": "#/$defs/distinguishedName" },
+          "groups": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/groupName" },
+            "uniqueItems": true
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "distinguishedName": {
+      "type": "string",
+      "pattern": "^(?:(?:OU|CN)=[^,=]+,)+(?:DC=[A-Za-z0-9-]+,)*DC=[A-Za-z0-9-]+$"
+    },
+    "groupName": {
+      "description": "Group sAMAccountName.",
+      "type": "string",
+      "pattern": "^[^\"/\\\\\\[\\]:;|=,+*?<>]{1,64}$"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$comment": "Optional overrides for Get-ItoHealthReport -ThresholdPath. Leave out any setting to keep its default.",
+  "diskFreePercentWarning": 20,
+  "diskFreePercentCritical": 10,
+  "memoryUsedPercentWarning": 85,
+  "memoryUsedPercentCritical": 95,
+  "uptimeDaysWarning": 14,
+  "uptimeDaysCritical": 30,
+  "stoppedServicesWarning": 1,
+  "stoppedServicesCritical": 5,
+  "criticalEventsWarning": 1,
+  "criticalEventsCritical": 5,
+  "updateAgeDaysWarning": 35,
+  "updateAgeDaysCritical": 60,
+  "bitLockerOffStatus": "Warning",
+  "ignoredServices": ["clr_optimization_*", "edgeupdate*", "gupdate*", "GoogleUpdater*", "MapsBroker", "RemoteRegistry", "sppsvc", "tiledatamodelsvc"]
+}
