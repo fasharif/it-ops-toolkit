@@ -319,6 +319,25 @@ Describe 'New-ItoUser' {
             $decrypted | Should -Match ('Initial password: ' + [regex]::Escape($plain))
         }
 
+        It 'writes delivery files that openssl can decrypt too, for service desks on Linux' -Skip:($PSVersionTable.PSEdition -ne 'Core' -or -not (Get-Command -Name openssl -ErrorAction SilentlyContinue)) {
+            $delivery = Join-Path -Path $TestDrive -ChildPath 'delivery-openssl'
+            $null = New-Item -ItemType Directory -Path $delivery -Force
+            $certificate = New-TestDeliveryCertificate -Directory $TestDrive
+            $rsa = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($certificate.Certificate)
+            $keyPath = Join-Path -Path $TestDrive -ChildPath 'delivery.key'
+            $certPath = Join-Path -Path $TestDrive -ChildPath 'delivery.pem'
+            Set-Content -LiteralPath $keyPath -Value ("-----BEGIN PRIVATE KEY-----`n{0}`n-----END PRIVATE KEY-----" -f [Convert]::ToBase64String($rsa.ExportPkcs8PrivateKey(), 'InsertLineBreaks'))
+            Set-Content -LiteralPath $certPath -Value ("-----BEGIN CERTIFICATE-----`n{0}`n-----END CERTIFICATE-----" -f [Convert]::ToBase64String($certificate.Certificate.RawData, 'InsertLineBreaks'))
+            $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
+
+            $result = New-ItoUser -Path $feed -ConfigPath $script:configPath -DeliveryPath $delivery -DeliveryCertificate $certificate.CerPath -Confirm:$false
+
+            $decrypted = & openssl cms -decrypt -binary -inform PEM -in $result.DeliveryFile -inkey $keyPath -recip $certPath
+            $LASTEXITCODE | Should -Be 0
+            $plain = ConvertFrom-TestSecureString -SecureString $script:created[0].Password
+            $decrypted | Should -Contain ('Initial password: ' + $plain)
+        }
+
         It 'requires -DeliveryPath and -DeliveryCertificate together' {
             $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
             { New-ItoUser -Path $feed -ConfigPath $script:configPath -DeliveryPath $TestDrive -Confirm:$false } | Should -Throw -ExpectedMessage '*together*'
