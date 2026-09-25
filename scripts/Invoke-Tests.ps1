@@ -3,9 +3,13 @@
     Runs PSScriptAnalyzer and the Pester tests for the ItOpsToolkit module.
 
 .DESCRIPTION
-    Installs the pinned versions of Pester and PSScriptAnalyzer from the PowerShell Gallery into
-    the current user's scope when they are missing, then runs the analyzer (which must report
-    nothing) and the Pester suite with code coverage. Results go to ./out.
+    Runs the analyzer (which must report nothing) and the Pester suite with code coverage.
+    Results go to ./out.
+
+    It needs the pinned versions of Pester and PSScriptAnalyzer, and only the ones the chosen
+    stage uses. When one is missing it installs it from the PowerShell Gallery into the current
+    user's scope, which is what the throwaway CI runners and containers want. On your own
+    machine, pass -NoInstall to get an error instead of an installation.
 
     CI and scripts/test-powershell.sh run this inside the mcr.microsoft.com/powershell container.
     On Windows it also runs in Windows PowerShell 5.1: powershell -File scripts/Invoke-Tests.ps1
@@ -15,6 +19,9 @@
 
 .PARAMETER MinimumCoverage
     Fail when line coverage of src/ is below this percentage. The default is 0 (report only).
+
+.PARAMETER NoInstall
+    Stop with an error when a required module version is missing, instead of installing it.
 #>
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleCmdlets', '',
     Justification = 'PackageManagement and PowerShellGet ship with Windows PowerShell 5.1; the analyzer profile predates them.')]
@@ -24,7 +31,9 @@ param(
     [string] $Stage = 'All',
 
     [ValidateRange(0, 100)]
-    [double] $MinimumCoverage = 0
+    [double] $MinimumCoverage = 0,
+
+    [switch] $NoInstall
 )
 
 $ErrorActionPreference = 'Stop'
@@ -33,14 +42,24 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $outDirectory = Join-Path -Path $repoRoot -ChildPath 'out'
 $null = New-Item -ItemType Directory -Path $outDirectory -Force
 
-$requiredModules = [ordered]@{
+$pinnedVersions = @{
     Pester           = '5.9.1'
     PSScriptAnalyzer = '1.25.0'
+}
+$requiredModules = [ordered]@{}
+if ($Stage -in @('All', 'Analyze')) {
+    $requiredModules['PSScriptAnalyzer'] = $pinnedVersions.PSScriptAnalyzer
+}
+if ($Stage -in @('All', 'Test')) {
+    $requiredModules['Pester'] = $pinnedVersions.Pester
 }
 
 foreach ($name in $requiredModules.Keys) {
     $version = [version]$requiredModules[$name]
     if (-not (Get-Module -ListAvailable -Name $name | Where-Object { $_.Version -eq $version })) {
+        if ($NoInstall) {
+            throw "$name $version is not installed. Install it with: Install-Module -Name $name -RequiredVersion $version -Scope CurrentUser"
+        }
         Write-Information "Installing $name $version from the PowerShell Gallery."
         if ($PSVersionTable.PSEdition -eq 'Desktop' -and -not (Get-PackageProvider -ListAvailable -Name NuGet -ErrorAction SilentlyContinue)) {
             $null = Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Scope CurrentUser -Force
@@ -63,7 +82,7 @@ Write-Information ("PowerShell {0} ({1}) on {2}" -f $PSVersionTable.PSVersion, $
 $failed = $false
 
 if ($Stage -in @('All', 'Analyze')) {
-    Import-Module -Name PSScriptAnalyzer -RequiredVersion $requiredModules.PSScriptAnalyzer -Force
+    Import-Module -Name PSScriptAnalyzer -RequiredVersion $pinnedVersions.PSScriptAnalyzer -Force
     $targets = @(
         @{ Path = Join-Path -Path $repoRoot -ChildPath 'src'; Settings = Join-Path -Path $repoRoot -ChildPath 'PSScriptAnalyzerSettings.psd1' }
         @{ Path = Join-Path -Path $repoRoot -ChildPath 'scripts'; Settings = Join-Path -Path $repoRoot -ChildPath 'PSScriptAnalyzerSettings.psd1' }
@@ -83,7 +102,7 @@ if ($Stage -in @('All', 'Analyze')) {
 }
 
 if ($Stage -in @('All', 'Test')) {
-    Import-Module -Name Pester -RequiredVersion $requiredModules.Pester -Force
+    Import-Module -Name Pester -RequiredVersion $pinnedVersions.Pester -Force
     $configuration = New-PesterConfiguration
     $configuration.Run.Path = Join-Path -Path $repoRoot -ChildPath 'tests/powershell'
     $configuration.Run.PassThru = $true
