@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+#
+# Fake ldbadd for the unit tests: records its arguments, appends the LDIF from stdin to
+# $FAKE_LDB/ldbadd.ldif and reports success. Create $FAKE_LDB/fail-ldbadd to make it fail
+# the way a careless tool might: by echoing its whole input, secrets included, to stderr.
+
+set -euo pipefail
+
+printf 'ldbadd %s\n' "$*" >>"$FAKE_LDB/calls.log"
+input=$(cat)
+printf '%s\n\n' "$input" >>"$FAKE_LDB/ldbadd.ldif"
+
+if [[ -e $FAKE_LDB/fail-ldbadd ]]; then
+    printf '%s\n' "$input" >&2
+    echo 'ERR: (Constraint violation) "Failed to add entry" on DN at block before line 16' >&2
+    exit 1
+fi
+echo 'Added 1 records successfully'

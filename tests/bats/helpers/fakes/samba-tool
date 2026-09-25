@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#
+# Fake samba-tool for the unit tests: records its arguments and succeeds. Create
+# $FAKE_LDB/fail-samba-tool-<subcommand>-<action> (for example fail-samba-tool-group-addmembers)
+# to make that command fail.
+
+set -euo pipefail
+
+printf 'samba-tool %s\n' "$*" >>"$FAKE_LDB/calls.log"
+if [[ -e $FAKE_LDB/fail-samba-tool-${1:-}-${2:-} ]]; then
+    echo "ERROR: Failed to $2: insufficient access rights" >&2
+    exit 255
+fi

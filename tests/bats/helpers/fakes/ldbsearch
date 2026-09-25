@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# Fake ldbsearch for the unit tests. It records its arguments and answers from fixtures:
+#   - the rootDSE (base "" and scope base) returns defaultNamingContext $FAKE_BASE_DN;
+#   - other base-scope searches succeed when the base DN is listed in $FAKE_LDB/objects,
+#     and fail with LDAP error 32 otherwise, as a real directory does;
+#   - subtree and one-level searches return $FAKE_LDB/responses/<key>.ldif, where the key is
+#     derived from the scope and filter (see ldb_key in helpers/common.bash), or no entries.
+# Create $FAKE_LDB/fail-ldbsearch to make every search fail.
+
+set -euo pipefail
+
+base='' scope='sub' filter='' attributes=()
+while (($# > 0)); do
+    case $1 in
+        -H | -A) shift 2 ;;
+        -b) base=$2; shift 2 ;;
+        -s) scope=$2; shift 2 ;;
+        *)
+            if [[ -z $filter ]]; then filter=$1; else attributes+=("$1"); fi
+            shift
+            ;;
+    esac
+done
+printf 'ldbsearch base=%s scope=%s filter=%s attrs=%s\n' "$base" "$scope" "$filter" "${attributes[*]:-}" >>"$FAKE_LDB/calls.log"
+
+if [[ -e $FAKE_LDB/fail-ldbsearch ]]; then
+    echo 'Failed to connect to ldap URL: NT_STATUS_CONNECTION_REFUSED' >&2
+    exit 1
+fi
+
+if [[ $scope == base && -z $base ]]; then
+    printf '# record 1\ndn: \ndefaultNamingContext: %s\n\n# returned 1 records\n' "$FAKE_BASE_DN"
+    exit 0
+fi
+
+if [[ $scope == base ]]; then
+    if [[ -f $FAKE_LDB/objects ]] && grep -qxF -- "${base,,}" "$FAKE_LDB/objects"; then
+        printf '# record 1\ndn: %s\n\n# returned 1 records\n# 1 entries\n# 0 referrals\n' "$base"
+        exit 0
+    fi
+    echo 'search error - LDAP error 32 LDAP_NO_SUCH_OBJECT' >&2
+    exit 32
+fi
+
+key=$(printf '%s|%s' "$scope" "$filter" | sha1sum | cut -c 1-16)
+if [[ -f $FAKE_LDB/responses/$key.ldif ]]; then
+    printf '# record 1\n'
+    cat "$FAKE_LDB/responses/$key.ldif"
+    printf '\n# Referral\nref: ldap://corp.itops.test/CN=Configuration,%s\n\n# returned 2 records\n# 1 entries\n# 1 referrals\n' "$FAKE_BASE_DN"
+else
+    printf '# returned 0 records\n# 0 entries\n# 0 referrals\n'
+fi

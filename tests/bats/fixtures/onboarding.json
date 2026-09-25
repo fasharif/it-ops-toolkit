@@ -1,0 +1,17 @@
+{
+  "$comment": "Test configuration for the bats unit tests. All-Staff is listed twice on purpose.",
+  "upnSuffix": "Corp.ITOps.test",
+  "samAccountNameFormat": "first.last",
+  "disabledOu": "OU=Disabled Users,DC=corp,DC=itops,DC=test",
+  "defaultGroups": ["All-Staff"],
+  "departments": {
+    "Finance": {
+      "ou": "OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test",
+      "groups": ["Finance-Users", "All-Staff"]
+    },
+    "Sales": {
+      "ou": "OU=Sales,OU=Staff,DC=corp,DC=itops,DC=test",
+      "groups": ["Sales-Users"]
+    }
+  }
+}

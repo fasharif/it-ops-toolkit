@@ -49,25 +49,25 @@ is_integer() {
 
 # json_escape STRING: prints STRING escaped for use inside a JSON string literal.
 json_escape() {
-    local input=$1 output='' char code i
+    local input=$1 escaped='' char code i
     for ((i = 0; i < ${#input}; i++)); do
         char=${input:i:1}
         case $char in
-            '"') output+='\"' ;;
-            $'\x5c') output+=$'\x5c\x5c' ;;
-            $'\n') output+='\n' ;;
-            $'\r') output+='\r' ;;
-            $'\t') output+='\t' ;;
+            '"') escaped+='\"' ;;
+            $'\x5c') escaped+=$'\x5c\x5c' ;;
+            $'\n') escaped+='\n' ;;
+            $'\r') escaped+='\r' ;;
+            $'\t') escaped+='\t' ;;
             *)
                 printf -v code '%d' "'$char"
                 if ((code >= 0 && code < 32)); then
                     printf -v char '\\u%04x' "$code"
                 fi
-                output+=$char
+                escaped+=$char
                 ;;
         esac
     done
-    printf '%s' "$output"
+    printf '%s' "$escaped"
 }
 
 # html_escape STRING: prints STRING safe for HTML text and attribute values.

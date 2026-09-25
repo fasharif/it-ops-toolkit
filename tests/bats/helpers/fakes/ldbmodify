@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#
+# Fake ldbmodify for the unit tests: records its arguments, appends the LDIF from stdin to
+# $FAKE_LDB/ldbmodify.ldif and reports success. Create $FAKE_LDB/fail-ldbmodify to make it fail.
+
+set -euo pipefail
+
+printf 'ldbmodify %s\n' "$*" >>"$FAKE_LDB/calls.log"
+cat >>"$FAKE_LDB/ldbmodify.ldif"
+printf '\n' >>"$FAKE_LDB/ldbmodify.ldif"
+
+if [[ -e $FAKE_LDB/fail-ldbmodify ]]; then
+    echo 'ERR: (Insufficient access rights) "Failed to modify entry"' >&2
+    exit 1
+fi
+echo 'Modified 1 records successfully'
