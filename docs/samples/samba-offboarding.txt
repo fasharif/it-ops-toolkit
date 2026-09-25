@@ -1,0 +1,12 @@
+$ linux/offboard-user.sh --user sara.ali --ticket INC0012345 --audit-dir /srv/it-ops/audit --config config/onboarding.example.json
+Exported 3 group membership(s) to /srv/it-ops/audit/sara.ali_INC0012345_20260925T232334Z_groups.csv
+Disabled the account
+Set the description to 'Offboarded 2026-09-25 ticket INC0012345 | previous: Start date 2026-10-05. Onboarded 2026-09-25 by it-ops-toolkit'
+Removed the account from CN=All-Staff,CN=Users,DC=corp,DC=itops,DC=test
+Removed the account from CN=Finance-Users,CN=Users,DC=corp,DC=itops,DC=test
+Removed the account from CN=Finance-Share-RW,CN=Users,DC=corp,DC=itops,DC=test
+Moved the account to OU=Disabled Users,DC=corp,DC=itops,DC=test
+Offboarded sara.ali under INC0012345: Exported group memberships, Disabled account, Recorded ticket in description, Removed from 3 group(s), Moved to disabled users OU.
+
+$ linux/offboard-user.sh --user sara.ali --ticket INC0012345 --audit-dir /srv/it-ops/audit --config config/onboarding.example.json
+Already offboarded: sara.ali needed no changes.

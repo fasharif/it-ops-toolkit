@@ -1,0 +1,9 @@
+$ linux/onboard-user.sh --csv examples/new-starters.csv --config config/onboarding.example.json --deliver-dir /srv/it-ops/deliver --deliver-cert /srv/it-ops/delivery.pem
+Row  Account               Status   Message
+1    sara.ali              Created  Created sara.ali@corp.itops.test in OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test.
+2    sara.ali2             Created  Created sara.ali2@corp.itops.test in OU=Sales,OU=Staff,DC=corp,DC=itops,DC=test.
+3    jose.garcialopez      Created  Created jose.garcialopez@corp.itops.test in OU=IT,OU=Staff,DC=corp,DC=itops,DC=test.
+4    liam.obrien           Created  Created liam.obrien@corp.itops.test in OU=Human Resources,OU=Staff,DC=corp,DC=itops,DC=test.
+5    aisha.almansoori      Created  Created aisha.almansoori@corp.itops.test in OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test.
+
+Onboarding summary: 5 created.

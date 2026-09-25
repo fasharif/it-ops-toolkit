@@ -1,0 +1,27 @@
+$ linux/net-check.sh --max-hops 8 www.microsoft.com
+Network check: www.microsoft.com port 443
+
+Layer              Status Detail
+IP configuration   Pass   eth0: 172.17.0.3
+Default gateway    Pass   172.17.0.1 answers ping.
+DNS servers        Pass   DNS servers: 192.168.65.7.
+DNS resolution     Pass   www.microsoft.com resolves to 23.35.101.225.
+TCP port           Pass   Connected to 23.35.101.225 on port 443.
+HTTPS              Pass   TLS handshake completed; the server answered with HTTP status 200.
+Route trace        Info   The trace stops after hop 1 (172.17.0.1); later hops did not answer within 8 hops.
+
+Diagnosis: No fault found: 'www.microsoft.com' resolves and port 443 accepts connections, and HTTPS answers.
+
+$ linux/net-check.sh --no-trace intranet.corp.itops.test
+Network check: intranet.corp.itops.test port 443
+
+Layer              Status Detail
+IP configuration   Pass   eth0: 172.17.0.3
+Default gateway    Pass   172.17.0.1 answers ping.
+DNS servers        Pass   DNS servers: 192.168.65.7.
+DNS resolution     Fail   'intranet.corp.itops.test' did not resolve, but 'www.microsoft.com' did.
+TCP port           Skip   Skipped because the name did not resolve.
+HTTPS              Skip   Skipped because the TCP connection failed.
+Route trace        Skip   Skipped (--no-trace).
+
+Diagnosis: DNS works, but the name 'intranet.corp.itops.test' does not resolve. Check the spelling. For an internal name, check that the record exists and that you are on the office network or VPN (split DNS).
