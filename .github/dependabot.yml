@@ -1,0 +1,26 @@
+# Dependabot keeps the pinned versions current. Not covered, and updated by hand (see
+# docs/decisions.md): the Pester and PSScriptAnalyzer versions in scripts/Invoke-Tests.ps1,
+# the bats-core tarball checksums in tests/docker/Dockerfile, and the container image tags in
+# scripts/*.sh and .github/workflows/ci.yml.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /tests/docker
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      python-dev-tools:
+        patterns: ["*"]
