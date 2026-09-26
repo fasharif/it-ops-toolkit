@@ -44,7 +44,8 @@ function Remove-ItoUser {
         Distinguished name of the target OU. Use instead of -ConfigPath.
 
     .PARAMETER Server
-        Domain controller or domain to use. Defaults to the computer's domain.
+        Domain controller to use for every directory call. Without it, one writable domain
+        controller in the computer's domain is found at the start and used for the whole run.
 
     .PARAMETER Credential
         Credential for the directory operations. Defaults to the current user.
@@ -109,7 +110,7 @@ function Remove-ItoUser {
         if ($PSCmdlet.ParameterSetName -eq 'Config') {
             $DisabledOu = (Read-ItoOnboardingConfig -Path $ConfigPath).DisabledOu
         }
-        $adParameters = Get-ItoAdParameter -Server $Server -Credential $Credential
+        $adParameters = Get-ItoAdParameter -Server $Server -Credential $Credential -PinDomainController
         $ticket = $TicketNumber.ToUpperInvariant()
         $auditFolder = (Resolve-Path -LiteralPath $AuditPath).ProviderPath
     }

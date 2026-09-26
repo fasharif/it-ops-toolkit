@@ -22,6 +22,7 @@ Describe 'Remove-ItoUser' {
             if ($LDAPFilter -like '*(sAMAccountName=omar.haddad)*') { return $script:user }
             return
         }
+        Mock -ModuleName ItOpsToolkit Get-ADDomainController { [pscustomobject]@{ HostName = @('dc7.corp.itops.test') } }
         Mock -ModuleName ItOpsToolkit Disable-ADAccount { }
         Mock -ModuleName ItOpsToolkit Set-ADUser { }
         Mock -ModuleName ItOpsToolkit Remove-ADGroupMember { }
@@ -41,6 +42,20 @@ Describe 'Remove-ItoUser' {
         Should -Invoke -ModuleName ItOpsToolkit Set-ADUser -Times 1 -Exactly -ParameterFilter { $Description -match '^Offboarded \d{4}-\d{2}-\d{2} ticket INC0012345 \| previous: Accounts payable$' }
         Should -Invoke -ModuleName ItOpsToolkit Remove-ADGroupMember -Times 2 -Exactly -ParameterFilter { $Members -contains 'CN=omar.haddad,OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test' }
         Should -Invoke -ModuleName ItOpsToolkit Move-ADObject -Times 1 -Exactly -ParameterFilter { $TargetPath -eq $script:disabledOu }
+    }
+
+    It 'makes every directory call on one writable domain controller when -Server is not given' {
+        $null = Remove-ItoUser -Identity 'omar.haddad' -TicketNumber 'INC0012345' -ConfigPath $script:configPath -AuditPath $script:auditPath -Confirm:$false
+        Should -Invoke -ModuleName ItOpsToolkit Get-ADDomainController -Times 1 -Exactly
+        foreach ($command in 'Get-ADUser', 'Disable-ADAccount', 'Set-ADUser', 'Remove-ADGroupMember', 'Move-ADObject') {
+            Should -Invoke -ModuleName ItOpsToolkit $command -ParameterFilter { $Server -ne 'dc7.corp.itops.test' } -Times 0 -Exactly
+        }
+    }
+
+    It 'uses -Server as given, without looking for a domain controller' {
+        $null = Remove-ItoUser -Identity 'omar.haddad' -TicketNumber 'INC0012345' -ConfigPath $script:configPath -AuditPath $script:auditPath -Server 'dc2.corp.itops.test' -Confirm:$false
+        Should -Invoke -ModuleName ItOpsToolkit Get-ADDomainController -Times 0 -Exactly
+        Should -Invoke -ModuleName ItOpsToolkit Move-ADObject -Times 1 -Exactly -ParameterFilter { $Server -eq 'dc2.corp.itops.test' }
     }
 
     It 'exports the group memberships before removing them' {

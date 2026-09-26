@@ -8,7 +8,8 @@ function Assert-ItoActiveDirectory {
 
     $required = @(
         'Get-ADUser', 'New-ADUser', 'Set-ADUser', 'Disable-ADAccount', 'Move-ADObject',
-        'Add-ADGroupMember', 'Remove-ADGroupMember', 'Get-ADGroup', 'Get-ADOrganizationalUnit', 'Get-ADDomain'
+        'Add-ADGroupMember', 'Remove-ADGroupMember', 'Get-ADGroup', 'Get-ADOrganizationalUnit', 'Get-ADDomain',
+        'Get-ADDomainController', 'Get-ADObject'
     )
     $missing = @($required | Where-Object { -not (Get-Command -Name $_ -ErrorAction SilentlyContinue) })
     if ($missing.Count -gt 0 -and (Get-Module -ListAvailable -Name 'ActiveDirectory')) {
@@ -26,6 +27,11 @@ function Get-ItoAdParameter {
     <#
     .SYNOPSIS
         Builds the -Server and -Credential splat shared by every ActiveDirectory call.
+    .DESCRIPTION
+        With -PinDomainController and no -Server, it finds one writable domain controller that
+        runs Active Directory Web Services and uses it for every call. Otherwise each cmdlet
+        locates a domain controller on its own, and in a domain with several, a group change
+        can reach a DC that has not yet replicated the account created a moment earlier.
     #>
     [CmdletBinding()]
     [OutputType([hashtable])]
@@ -33,12 +39,24 @@ function Get-ItoAdParameter {
         [string] $Server,
 
         [System.Management.Automation.PSCredential]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [switch] $PinDomainController
     )
 
     $parameters = @{}
     if (-not [string]::IsNullOrEmpty($Server)) {
         $parameters['Server'] = $Server
+    }
+    elseif ($PinDomainController) {
+        try {
+            $domainController = Get-ADDomainController -Discover -Writable -Service ADWS -ErrorAction Stop
+        }
+        catch {
+            throw "No writable domain controller was found: $($_.Exception.Message.Trim()) Name one with -Server."
+        }
+        $parameters['Server'] = [string](@($domainController.HostName)[0])
+        Write-Verbose "Using domain controller $($parameters['Server']) for every directory call."
     }
     if ($null -ne $Credential -and $Credential -ne [System.Management.Automation.PSCredential]::Empty) {
         $parameters['Credential'] = $Credential

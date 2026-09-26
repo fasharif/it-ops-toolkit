@@ -57,7 +57,9 @@ function New-ItoUser {
         Length of the initial passwords, from 14 to 128. The default is 20.
 
     .PARAMETER Server
-        Domain controller or domain to use. Defaults to the computer's domain.
+        Domain controller to use for every directory call. Without it, one writable domain
+        controller in the computer's domain is found at the start and used for the whole run,
+        so accounts created early in the batch are visible to the later steps.
 
     .PARAMETER Credential
         Credential for the directory operations. Defaults to the current user.
@@ -145,7 +147,7 @@ function New-ItoUser {
             $deliveryRecipient = Assert-ItoDeliveryCertificate -Certificate $DeliveryCertificate
         }
 
-        $adParameters = Get-ItoAdParameter -Server $Server -Credential $Credential
+        $adParameters = Get-ItoAdParameter -Server $Server -Credential $Credential -PinDomainController
         $reservedNames = New-Object -TypeName 'System.Collections.Generic.HashSet[string]' -ArgumentList ([System.StringComparer]::OrdinalIgnoreCase)
         $seenEmployeeIds = New-Object -TypeName 'System.Collections.Generic.HashSet[string]' -ArgumentList ([System.StringComparer]::OrdinalIgnoreCase)
         $targetCache = @{}

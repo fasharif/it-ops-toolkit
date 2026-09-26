@@ -129,4 +129,32 @@ function Get-ADDomain {
     throw 'Get-ADDomain stub was called without a mock.'
 }
 
+function Get-ADDomainController {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)] [object] $Identity,
+        [switch] $Discover,
+        [switch] $Writable,
+        [string[]] $Service,
+        [string] $DomainName,
+        [string] $Server,
+        [pscredential] $Credential
+    )
+    throw 'Get-ADDomainController stub was called without a mock.'
+}
+
+function Get-ADObject {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)] [object] $Identity,
+        [string] $LDAPFilter,
+        [string[]] $Properties,
+        [string] $SearchBase,
+        [string] $SearchScope,
+        [string] $Server,
+        [pscredential] $Credential
+    )
+    throw 'Get-ADObject stub was called without a mock.'
+}
+
 Export-ModuleMember -Function *

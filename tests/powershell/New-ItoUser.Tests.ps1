@@ -24,6 +24,7 @@ Describe 'New-ItoUser' {
         $script:sameNameInOu = @()
         $script:managers = @('lina.haddad')
 
+        Mock -ModuleName ItOpsToolkit Get-ADDomainController { [pscustomobject]@{ HostName = @('dc7.corp.itops.test') } }
         Mock -ModuleName ItOpsToolkit Get-ADOrganizationalUnit { [pscustomobject]@{ DistinguishedName = $Identity } }
         Mock -ModuleName ItOpsToolkit Get-ADGroup { [pscustomobject]@{ Name = 'group' } }
         Mock -ModuleName ItOpsToolkit Add-ADGroupMember { }
@@ -482,6 +483,24 @@ Describe 'New-ItoUser' {
             Should -Invoke -ModuleName ItOpsToolkit New-ADUser -Times 1 -Exactly -ParameterFilter { $Server -eq 'dc1.corp.itops.test' -and $Credential.UserName -eq 'CORP\svc-onboard' }
             Should -Invoke -ModuleName ItOpsToolkit Get-ADUser -ParameterFilter { $Server -ne 'dc1.corp.itops.test' } -Times 0 -Exactly
             Should -Invoke -ModuleName ItOpsToolkit Add-ADGroupMember -ParameterFilter { $Server -ne 'dc1.corp.itops.test' } -Times 0 -Exactly
+            Should -Invoke -ModuleName ItOpsToolkit Get-ADDomainController -Times 0 -Exactly
+        }
+
+        It 'uses one writable domain controller for the whole batch when -Server is not given' {
+            $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,', 'E2,Omar,Haddad,Sales,,,')
+            $null = New-ItoUser -Path $feed -ConfigPath $script:configPath -Confirm:$false
+            Should -Invoke -ModuleName ItOpsToolkit Get-ADDomainController -Times 1 -Exactly -ParameterFilter { $Discover -and $Writable -and $Service -contains 'ADWS' }
+            Should -Invoke -ModuleName ItOpsToolkit New-ADUser -Times 2 -Exactly -ParameterFilter { $Server -eq 'dc7.corp.itops.test' }
+            Should -Invoke -ModuleName ItOpsToolkit Get-ADUser -ParameterFilter { $Server -ne 'dc7.corp.itops.test' } -Times 0 -Exactly
+            Should -Invoke -ModuleName ItOpsToolkit Add-ADGroupMember -ParameterFilter { $Server -ne 'dc7.corp.itops.test' } -Times 0 -Exactly
+        }
+
+        It 'stops before any change when no domain controller can be found' {
+            Mock -ModuleName ItOpsToolkit Get-ADDomainController { throw 'The specified domain either does not exist or could not be contacted.' }
+            $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
+            { New-ItoUser -Path $feed -ConfigPath $script:configPath -Confirm:$false } |
+                Should -Throw -ExpectedMessage 'No writable domain controller was found: The specified domain either does not exist or could not be contacted. Name one with -Server.'
+            Should -Invoke -ModuleName ItOpsToolkit New-ADUser -Times 0 -Exactly
         }
     }
 }
