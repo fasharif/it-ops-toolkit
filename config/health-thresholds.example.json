@@ -8,10 +8,11 @@
   "uptimeDaysCritical": 30,
   "stoppedServicesWarning": 1,
   "stoppedServicesCritical": 5,
+  "delayedStartGraceMinutes": 10,
   "criticalEventsWarning": 1,
   "criticalEventsCritical": 5,
   "updateAgeDaysWarning": 35,
   "updateAgeDaysCritical": 60,
   "bitLockerOffStatus": "Warning",
-  "ignoredServices": ["clr_optimization_*", "edgeupdate*", "gupdate*", "GoogleUpdater*", "MapsBroker", "RemoteRegistry", "sppsvc", "tiledatamodelsvc"]
+  "ignoredServices": ["clr_optimization_*", "edgeupdate*", "gupdate*", "GoogleUpdater*", "MapsBroker", "RemoteRegistry", "sppsvc", "tiledatamodelsvc", "WslInstaller"]
 }

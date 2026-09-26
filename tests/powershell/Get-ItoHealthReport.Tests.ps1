@@ -96,8 +96,45 @@ Describe 'Get-ItoHealthReport' {
             }
             $check = Get-Check (Get-ItoHealthReport) 'Automatic services'
             $check.Status | Should -Be 'Warning'
-            $check.Value | Should -Be '1 automatic service(s) stopped: Spooler'
+            $check.Value | Should -Be '1 automatic service(s) stopped with an error or never started: Spooler'
             @($check.Data).Count | Should -Be 1
+        }
+
+        It 'lists services that stopped cleanly for information without counting them' {
+            Mock -ModuleName ItOpsToolkit Get-ItoStoppedServiceData {
+                [pscustomobject]@{ Name = 'WslInstaller'; DisplayName = 'WSL'; State = 'Stopped'; DelayedAutoStart = $false; TriggerStart = $false; ExitCode = 0 }
+                [pscustomobject]@{ Name = 'VendorUpdater'; DisplayName = 'Vendor updater'; State = 'Stopped'; DelayedAutoStart = $false; TriggerStart = $false; ExitCode = 0 }
+            }
+            $report = Get-ItoHealthReport
+            $check = Get-Check $report 'Automatic services'
+            $check.Status | Should -Be 'OK'
+            $check.Value | Should -Be 'No automatic service has stopped with an error'
+            $check.Detail | Should -Be 'For information, not counted: 1 automatic service(s) stopped cleanly (exit code 0), which is usual for services that stop once their work is done: VendorUpdater.'
+            @($check.Data).Reason | Should -Be @('StoppedCleanly')
+            $report.OverallStatus | Should -Be 'OK'
+        }
+
+        It 'does not count delayed-start services in the first minutes after boot, but does afterwards' -ForEach @(
+            @{ MinutesSinceBoot = 4; Expected = 'OK'; Reason = 'DelayedStartPending' }
+            @{ MinutesSinceBoot = 30; Expected = 'Warning'; Reason = 'Failed' }
+        ) {
+            Mock -ModuleName ItOpsToolkit Get-ItoOperatingSystemData {
+                [pscustomobject]@{ Caption = 'Windows'; Version = '10'; TotalMemoryKB = 1000; FreeMemoryKB = 900; LastBootUpTime = (Get-Date).AddMinutes(-$MinutesSinceBoot) }
+            }
+            Mock -ModuleName ItOpsToolkit Get-ItoStoppedServiceData {
+                [pscustomobject]@{ Name = 'BITS'; DisplayName = 'Background Intelligent Transfer Service'; State = 'Stopped'; DelayedAutoStart = $true; TriggerStart = $false; ExitCode = 1077 }
+            }
+            $check = Get-Check (Get-ItoHealthReport) 'Automatic services'
+            $check.Status | Should -Be $Expected
+            @($check.Data).Reason | Should -Be @($Reason)
+        }
+
+        It 'counts delayed-start services when the boot time cannot be read' {
+            Mock -ModuleName ItOpsToolkit Get-ItoOperatingSystemData { throw 'Access denied' }
+            Mock -ModuleName ItOpsToolkit Get-ItoStoppedServiceData {
+                [pscustomobject]@{ Name = 'BITS'; DisplayName = 'BITS'; State = 'Stopped'; DelayedAutoStart = $true; TriggerStart = $false; ExitCode = 1077 }
+            }
+            (Get-Check (Get-ItoHealthReport) 'Automatic services').Status | Should -Be 'Warning'
         }
 
         It 'is critical when five or more automatic services are stopped' {
@@ -151,10 +188,10 @@ Describe 'Get-ItoHealthReport' {
         }
 
         It 'reports BitLocker as Unknown, with the reason, when it cannot be read' {
-            Mock -ModuleName ItOpsToolkit Get-ItoBitLockerData { [pscustomobject]@{ Available = $false; Reason = 'The BitLocker PowerShell module is not installed.' } }
+            Mock -ModuleName ItOpsToolkit Get-ItoBitLockerData { [pscustomobject]@{ Available = $false; Reason = 'The BitLocker PowerShell module is not available on this system.' } }
             $check = Get-Check (Get-ItoHealthReport) 'BitLocker'
             $check.Status | Should -Be 'Unknown'
-            $check.Detail | Should -Be 'The BitLocker PowerShell module is not installed.'
+            $check.Detail | Should -Be 'The BitLocker PowerShell module is not available on this system.'
         }
 
         It 'uses the worst check as the overall status' {

@@ -139,7 +139,7 @@ function Get-ItoBitLockerData {
     if (-not (Get-Command -Name 'Get-BitLockerVolume' -ErrorAction SilentlyContinue)) {
         return [pscustomobject]@{
             Available = $false
-            Reason    = 'The BitLocker PowerShell module is not installed (Windows Home editions do not include it).'
+            Reason    = 'The BitLocker PowerShell module is not available on this system.'
         }
     }
     try {

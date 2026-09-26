@@ -14,12 +14,13 @@ function Get-ItoDefaultHealthThreshold {
         UptimeDaysCritical        = 30
         StoppedServicesWarning    = 1
         StoppedServicesCritical   = 5
+        DelayedStartGraceMinutes  = 10
         CriticalEventsWarning     = 1
         CriticalEventsCritical    = 5
         UpdateAgeDaysWarning      = 35
         UpdateAgeDaysCritical     = 60
         BitLockerOffStatus        = 'Warning'
-        IgnoredServices           = @('clr_optimization_*', 'edgeupdate*', 'gupdate*', 'GoogleUpdater*', 'MapsBroker', 'RemoteRegistry', 'sppsvc', 'tiledatamodelsvc')
+        IgnoredServices           = @('clr_optimization_*', 'edgeupdate*', 'gupdate*', 'GoogleUpdater*', 'MapsBroker', 'RemoteRegistry', 'sppsvc', 'tiledatamodelsvc', 'WslInstaller')
     }
 }
 
@@ -280,6 +281,16 @@ function Get-ItoPendingRebootCheck {
 }
 
 function Get-ItoServiceCheck {
+    <#
+    .SYNOPSIS
+        Grades automatic services that are not running.
+    .DESCRIPTION
+        Only services that stopped with an error, or never started (exit code other than 0),
+        count towards the Warning and Critical levels. Excluded: trigger-start services, the
+        ignored list, and delayed-start services in the first minutes after boot, before Windows
+        has started them. Services that stopped cleanly (exit code 0) usually stop by design once
+        their work is done; they are listed in the detail for information, but do not count.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -287,24 +298,61 @@ function Get-ItoServiceCheck {
         [object[]] $Services,
 
         [Parameter(Mandatory)]
-        [hashtable] $Thresholds
+        [hashtable] $Thresholds,
+
+        [AllowNull()]
+        [object] $LastBootUpTime,
+
+        [datetime] $Now = (Get-Date)
     )
 
     $ignored = @($Thresholds.IgnoredServices)
-    $stopped = @($Services | Where-Object {
+    $graceMinutes = [double]$Thresholds.DelayedStartGraceMinutes
+    $minutesSinceBoot = $null
+    if ($null -ne $LastBootUpTime) {
+        $minutesSinceBoot = ($Now - [datetime]$LastBootUpTime).TotalMinutes
+    }
+    $inGrace = $null -ne $minutesSinceBoot -and $minutesSinceBoot -lt $graceMinutes
+
+    $listed = @($Services | Where-Object {
             $service = $_
             -not $service.TriggerStart -and -not ($ignored | Where-Object { $service.Name -like $_ })
         } | Sort-Object -Property Name)
-    $status = Get-ItoThresholdStatus -Value $stopped.Count -Warning $Thresholds.StoppedServicesWarning -Critical $Thresholds.StoppedServicesCritical
-    $value = 'All automatic services are running'
-    $detail = ''
-    if ($stopped.Count -gt 0) {
-        $value = '{0} automatic service(s) stopped: {1}' -f $stopped.Count, (($stopped | ForEach-Object { $_.Name }) -join ', ')
-        $detail = 'Check each service in services.msc and the System event log (source Service Control Manager, event 7000-7043) for the reason it stopped.'
+    $failed = New-Object -TypeName System.Collections.Generic.List[object]
+    $cleanStops = New-Object -TypeName System.Collections.Generic.List[object]
+    $pending = New-Object -TypeName System.Collections.Generic.List[object]
+    $data = foreach ($service in $listed) {
+        if ([int]$service.ExitCode -eq 0) {
+            $cleanStops.Add($service)
+            $reason = 'StoppedCleanly'
+        }
+        elseif ($inGrace -and $service.DelayedAutoStart) {
+            $pending.Add($service)
+            $reason = 'DelayedStartPending'
+        }
+        else {
+            $failed.Add($service)
+            $reason = 'Failed'
+        }
+        [pscustomobject]@{ Name = $service.Name; DisplayName = $service.DisplayName; State = $service.State; ExitCode = $service.ExitCode; Reason = $reason }
     }
-    ConvertTo-ItoHealthCheck -Name 'Automatic services' -Category 'Services' -Status $status -Value $value -Detail $detail `
-        -Threshold (Format-ItoInvariant -Format 'Warning at {0} stopped, critical at {1} stopped (trigger-start and ignored services excluded)' -Arguments $Thresholds.StoppedServicesWarning, $Thresholds.StoppedServicesCritical) `
-        -Data @($stopped | ForEach-Object { [pscustomobject]@{ Name = $_.Name; DisplayName = $_.DisplayName; State = $_.State; ExitCode = $_.ExitCode } })
+
+    $status = Get-ItoThresholdStatus -Value $failed.Count -Warning $Thresholds.StoppedServicesWarning -Critical $Thresholds.StoppedServicesCritical
+    $value = 'No automatic service has stopped with an error'
+    $notes = New-Object -TypeName System.Collections.Generic.List[string]
+    if ($failed.Count -gt 0) {
+        $value = '{0} automatic service(s) stopped with an error or never started: {1}' -f $failed.Count, (($failed | ForEach-Object { $_.Name }) -join ', ')
+        $notes.Add('Check each service in services.msc and the System event log (source Service Control Manager, events 7000-7043) for the reason it stopped.')
+    }
+    if ($cleanStops.Count -gt 0) {
+        $notes.Add(('For information, not counted: {0} automatic service(s) stopped cleanly (exit code 0), which is usual for services that stop once their work is done: {1}.' -f $cleanStops.Count, (($cleanStops | ForEach-Object { $_.Name }) -join ', ')))
+    }
+    if ($pending.Count -gt 0) {
+        $notes.Add((Format-ItoInvariant -Format 'Not counted yet: {0} delayed-start service(s) that Windows starts a few minutes after boot ({1:0} minute(s) ago): {2}.' -Arguments $pending.Count, $minutesSinceBoot, (($pending | ForEach-Object { $_.Name }) -join ', ')))
+    }
+    ConvertTo-ItoHealthCheck -Name 'Automatic services' -Category 'Services' -Status $status -Value $value -Detail ($notes -join ' ') `
+        -Threshold (Format-ItoInvariant -Format 'Warning at {0}, critical at {1} automatic services stopped with an error or never started (clean stops, trigger-start and ignored services, and delayed-start services in the first {2} minutes after boot, are not counted)' -Arguments $Thresholds.StoppedServicesWarning, $Thresholds.StoppedServicesCritical, $Thresholds.DelayedStartGraceMinutes) `
+        -Data @($data)
 }
 
 function Get-ItoEventCheck {

@@ -11,9 +11,11 @@ function Get-ItoHealthReport {
         - Uptime: days since the last boot (warning at 14 days, critical at 30).
         - Pending reboot: Windows Update, component servicing, file rename operations or a
           computer rename waiting for a restart (warning).
-        - Automatic services: services set to start automatically that are not running,
-          excluding trigger-start services and a list of services that stop by design
-          (warning at 1, critical at 5).
+        - Automatic services: services set to start automatically that stopped with an error or
+          never started (warning at 1, critical at 5). Not counted: services that stopped
+          cleanly (exit code 0, listed for information), trigger-start services, a list of
+          services that stop by design, and delayed-start services in the first 10 minutes
+          after boot.
         - Critical events: level 1 events in the System and Application logs in the last
           24 hours (warning at 1, critical at 5).
         - Last update installed: days since the newest hotfix was installed (warning after 35
@@ -82,17 +84,23 @@ function Get-ItoHealthReport {
     $thresholds = Read-ItoHealthThreshold -Path $ThresholdPath
     $now = Get-Date
     $checks = New-Object -TypeName System.Collections.Generic.List[object]
+    # Each collector runs in its own scope; the service check reuses the boot time through this table.
+    $shared = @{ LastBootUpTime = $null }
 
     $collectors = @(
         @{ Name = 'Disk space'; Category = 'Storage'; Script = { Get-ItoDiskCheck -Disks @(Get-ItoDiskData) -Thresholds $thresholds } }
         @{ Name = 'Memory and uptime'; Category = 'Performance'; Script = {
                 $os = Get-ItoOperatingSystemData
+                $shared.LastBootUpTime = $os.LastBootUpTime
                 Get-ItoMemoryCheck -OperatingSystem $os -Thresholds $thresholds
                 Get-ItoUptimeCheck -LastBootUpTime $os.LastBootUpTime -Now $now -Thresholds $thresholds
             }
         }
         @{ Name = 'Pending reboot'; Category = 'Maintenance'; Script = { Get-ItoPendingRebootCheck -Reasons @(Get-ItoPendingRebootData) } }
-        @{ Name = 'Automatic services'; Category = 'Services'; Script = { Get-ItoServiceCheck -Services @(Get-ItoStoppedServiceData) -Thresholds $thresholds } }
+        @{ Name = 'Automatic services'; Category = 'Services'; Script = {
+                Get-ItoServiceCheck -Services @(Get-ItoStoppedServiceData) -Thresholds $thresholds -LastBootUpTime $shared.LastBootUpTime -Now $now
+            }
+        }
         @{ Name = 'Critical events'; Category = 'Reliability'; Script = { Get-ItoEventCheck -Events @(Get-ItoCriticalEventData -Hours $EventWindowHours) -Hours $EventWindowHours -Thresholds $thresholds } }
         @{ Name = 'Last update installed'; Category = 'Security'; Script = { Get-ItoUpdateCheck -LastUpdate (Get-ItoLastUpdateData) -Now $now -Thresholds $thresholds } }
         @{ Name = 'BitLocker'; Category = 'Security'; Script = { Get-ItoBitLockerCheck -BitLocker (Get-ItoBitLockerData) -Thresholds $thresholds } }
