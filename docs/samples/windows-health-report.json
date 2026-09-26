@@ -1,6 +1,6 @@
 {
     "ComputerName":  "(computer name removed)",
-    "GeneratedAtUtc":  "2026-09-25T23:12:55Z",
+    "GeneratedAtUtc":  "2026-09-26T01:14:00Z",
     "ToolkitVersion":  "0.1.0",
     "EventWindowHours":  24,
     "OverallStatus":  "Warning",
@@ -9,38 +9,38 @@
                        "Name":  "Disk space C:",
                        "Category":  "Storage",
                        "Status":  "OK",
-                       "Value":  "39.2% free (176.2 GB of 449.6 GB)",
+                       "Value":  "31.7% free (142.7 GB of 449.6 GB)",
                        "Threshold":  "Warning below 20% free, critical below 10% free",
                        "Detail":  "",
                        "Data":  {
                                     "Drive":  "C:",
-                                    "FreePercent":  39.2,
-                                    "FreeBytes":  189181255680,
+                                    "FreePercent":  31.7,
+                                    "FreeBytes":  153189531648,
                                     "SizeBytes":  482783596544
                                 }
                    },
                    {
                        "Name":  "Memory",
                        "Category":  "Performance",
-                       "Status":  "OK",
-                       "Value":  "82.7% used (2.6 GB free of 15.2 GB)",
+                       "Status":  "Warning",
+                       "Value":  "91.4% used (1.3 GB free of 15.2 GB)",
                        "Threshold":  "Warning at 85% used, critical at 95% used",
-                       "Detail":  "",
+                       "Detail":  "Open Task Manager, sort by Memory, and close or restart the heaviest applications. Repeated high use points to a memory upgrade.",
                        "Data":  {
-                                    "UsedPercent":  82.7,
+                                    "UsedPercent":  91.4,
                                     "TotalKB":  15987804,
-                                    "FreeKB":  2762140
+                                    "FreeKB":  1367376
                                 }
                    },
                    {
                        "Name":  "Uptime",
                        "Category":  "Maintenance",
                        "Status":  "OK",
-                       "Value":  "0.5 days (last boot 2026-09-25 14:43)",
+                       "Value":  "0.6 days (last boot 2026-09-25 14:43)",
                        "Threshold":  "Warning at 14 days, critical at 30 days",
                        "Detail":  "",
                        "Data":  {
-                                    "UptimeDays":  0.5,
+                                    "UptimeDays":  0.6,
                                     "LastBootUpTime":  "2026-09-25T14:43:28.5000000+04:00"
                                 }
                    },
@@ -60,34 +60,31 @@
                    {
                        "Name":  "Automatic services",
                        "Category":  "Services",
-                       "Status":  "Warning",
-                       "Value":  "4 automatic service(s) stopped: (third-party service A), (third-party service B), (third-party service C), WslInstaller",
-                       "Threshold":  "Warning at 1 stopped, critical at 5 stopped (trigger-start and ignored services excluded)",
-                       "Detail":  "Check each service in services.msc and the System event log (source Service Control Manager, event 7000-7043) for the reason it stopped.",
+                       "Status":  "OK",
+                       "Value":  "No automatic service has stopped with an error",
+                       "Threshold":  "Warning at 1, critical at 5 automatic services stopped with an error or never started (clean stops, trigger-start and ignored services, and delayed-start services in the first 10 minutes after boot, are not counted)",
+                       "Detail":  "For information, not counted: 3 automatic service(s) stopped cleanly (exit code 0), which is usual for services that stop once their work is done: (third-party service A), (third-party service B), (third-party service C).",
                        "Data":  [
                                     {
                                         "Name":  "(third-party service A)",
                                         "DisplayName":  "(third-party service A, name removed)",
                                         "State":  "Stopped",
-                                        "ExitCode":  0
+                                        "ExitCode":  0,
+                                        "Reason":  "StoppedCleanly"
                                     },
                                     {
                                         "Name":  "(third-party service B)",
                                         "DisplayName":  "(third-party service B, name removed)",
                                         "State":  "Stopped",
-                                        "ExitCode":  0
+                                        "ExitCode":  0,
+                                        "Reason":  "StoppedCleanly"
                                     },
                                     {
                                         "Name":  "(third-party service C)",
                                         "DisplayName":  "(third-party service C, name removed)",
                                         "State":  "Stopped",
-                                        "ExitCode":  0
-                                    },
-                                    {
-                                        "Name":  "WslInstaller",
-                                        "DisplayName":  "Windows Subsystem for Linux",
-                                        "State":  "Stopped",
-                                        "ExitCode":  0
+                                        "ExitCode":  0,
+                                        "Reason":  "StoppedCleanly"
                                     }
                                 ]
                    },
@@ -129,6 +126,7 @@
                        "BitLockerOffStatus":  "Warning",
                        "MemoryUsedPercentWarning":  85,
                        "StoppedServicesCritical":  5,
+                       "UpdateAgeDaysWarning":  35,
                        "CriticalEventsCritical":  5,
                        "UptimeDaysCritical":  30,
                        "UpdateAgeDaysCritical":  60,
@@ -140,9 +138,10 @@
                                                "MapsBroker",
                                                "RemoteRegistry",
                                                "sppsvc",
-                                               "tiledatamodelsvc"
+                                               "tiledatamodelsvc",
+                                               "WslInstaller"
                                            ],
-                       "UpdateAgeDaysWarning":  35,
+                       "DelayedStartGraceMinutes":  10,
                        "DiskFreePercentCritical":  10,
                        "UptimeDaysWarning":  14,
                        "MemoryUsedPercentCritical":  95,
