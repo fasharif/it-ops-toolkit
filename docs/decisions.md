@@ -108,12 +108,14 @@ because `read` collapses runs of tabs and would lose empty fields.
 
 **Decision.** Onboarding skips any row whose employee ID already has an account. Offboarding
 checks each step's current state (enabled, description, groups, OU) before changing it, and
-exports group memberships before removing any, stopping if the export fails. Accounts are
+exports group memberships before removing any, stopping if the export fails. If the operator
+answers No to the export prompt, `Remove-ItoUser` does not remove any groups either, still runs
+the steps that were accepted, and reports `Partial` with what was not done. Accounts are
 disabled and moved, never deleted.
 
 **Consequences.** Running either command again is safe and reports "Exists" or
-"AlreadyOffboarded". Deleting accounts after a retention period is left to a separate, reviewed
-process.
+"AlreadyOffboarded", and a second run finishes a `Partial` offboarding. Deleting accounts after
+a retention period is left to a separate, reviewed process.
 
 ## 9. Windows PowerShell 5.1 compatibility is tested, not assumed
 

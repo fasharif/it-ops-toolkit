@@ -82,11 +82,19 @@ Describe 'Remove-ItoUser' {
     It 'makes no changes and writes no files with -WhatIf' {
         $result = Remove-ItoUser -Identity 'omar.haddad' -TicketNumber 'INC0012345' -ConfigPath $script:configPath -AuditPath $script:auditPath -WhatIf
         $result.Status | Should -Be 'Planned'
+        $result.Message | Should -BeLike 'No changes were made (-WhatIf). Would export group memberships, disable the account, *remove 2 group membership(s)*'
         @(Get-ChildItem -LiteralPath $script:auditPath).Count | Should -Be 0
         Should -Invoke -ModuleName ItOpsToolkit Disable-ADAccount -Times 0 -Exactly
         Should -Invoke -ModuleName ItOpsToolkit Set-ADUser -Times 0 -Exactly
         Should -Invoke -ModuleName ItOpsToolkit Remove-ADGroupMember -Times 0 -Exactly
         Should -Invoke -ModuleName ItOpsToolkit Move-ADObject -Times 0 -Exactly
+    }
+
+    It 'reports an offboarded account as AlreadyOffboarded under -WhatIf too' {
+        $script:user = New-TestAdUser -SamAccountName 'omar.haddad' -Enabled $false -MemberOf @() `
+            -DistinguishedName "CN=omar.haddad,$script:disabledOu" -Description 'Offboarded 2026-09-01 ticket INC0012345'
+        $result = Remove-ItoUser -Identity 'omar.haddad' -TicketNumber 'INC0012345' -ConfigPath $script:configPath -AuditPath $script:auditPath -WhatIf
+        $result.Status | Should -Be 'AlreadyOffboarded'
     }
 
     It 'removes no groups when the audit export fails' {
@@ -129,6 +137,99 @@ Describe 'Remove-ItoUser' {
         $script:user = New-TestAdUser -SamAccountName 'omar.haddad' -Description ('x' * 1100)
         $null = Remove-ItoUser -Identity 'omar.haddad' -TicketNumber 'INC0012345' -ConfigPath $script:configPath -AuditPath $script:auditPath -Confirm:$false
         Should -Invoke -ModuleName ItOpsToolkit Set-ADUser -Times 1 -Exactly -ParameterFilter { $Description.Length -eq 1024 }
+    }
+
+    Context 'answers at the confirmation prompts' {
+        # Pester cannot answer a real ShouldProcess prompt, so these tests run Remove-ItoUser in a
+        # child PowerShell process (the same edition as the test run) and type the answers on its
+        # standard input, as an operator would. The ActiveDirectory commands are stand-ins that
+        # record their names.
+        BeforeAll {
+            $script:childScript = Join-Path -Path $TestDrive -ChildPath 'offboard-with-answers.ps1'
+            Set-Content -LiteralPath $script:childScript -Encoding UTF8 -Value @'
+param(
+    [Parameter(Mandatory)] [string] $ModulePath,
+    [Parameter(Mandatory)] [string] $ConfigPath,
+    [Parameter(Mandatory)] [string] $AuditPath
+)
+$ErrorActionPreference = 'Stop'
+$global:calls = New-Object -TypeName System.Collections.Generic.List[string]
+$global:leaver = [pscustomobject]@{
+    SamAccountName    = 'omar.haddad'
+    Enabled           = $true
+    Description       = 'Accounts payable'
+    DistinguishedName = 'CN=omar.haddad,OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test'
+    MemberOf          = @('CN=Finance-Users,OU=Groups,DC=corp,DC=itops,DC=test', 'CN=Finance-Share-RW,OU=Groups,DC=corp,DC=itops,DC=test')
+}
+foreach ($name in 'New-ADUser', 'Set-ADUser', 'Disable-ADAccount', 'Move-ADObject', 'Add-ADGroupMember', 'Remove-ADGroupMember',
+    'Get-ADGroup', 'Get-ADOrganizationalUnit', 'Get-ADDomain', 'Get-ADObject') {
+    Set-Item -Path "function:global:$name" -Value ([scriptblock]::Create("`$global:calls.Add('$name')"))
+}
+function global:Get-ADUser { $global:leaver }
+function global:Get-ADDomainController { [pscustomobject]@{ HostName = @('dc1.corp.itops.test') } }
+Import-Module -Name $ModulePath
+$result = Remove-ItoUser -Identity 'omar.haddad' -TicketNumber 'INC0012345' -ConfigPath $ConfigPath -AuditPath $AuditPath -WarningVariable warnings -WarningAction SilentlyContinue
+'RESULT:' + ([pscustomobject]@{
+        Status        = $result.Status
+        Message       = $result.Message
+        Actions       = @($result.Actions)
+        GroupsRemoved = @($result.GroupsRemoved)
+        AuditFile     = $result.AuditFile
+        Calls         = @($global:calls)
+        Warnings      = @($warnings | ForEach-Object { [string]$_ })
+    } | ConvertTo-Json -Compress -Depth 3)
+'@
+
+            function Invoke-OffboardingWithAnswer {
+                param([Parameter(Mandatory)] [string[]] $Answer)
+                $executable = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
+                $arguments = @('-NoProfile')
+                if ($PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows) {
+                    $arguments += @('-ExecutionPolicy', 'Bypass')
+                }
+                $arguments += @('-File', $script:childScript, '-ModulePath', $script:ModuleManifest, '-ConfigPath', $script:configPath, '-AuditPath', $script:auditPath)
+                $output = ($Answer -join "`n") | & $executable @arguments
+                $line = @($output | Where-Object { $_ -like 'RESULT:*' })
+                $line.Count | Should -Be 1 -Because ($output -join "`n")
+                $line[0].Substring(7) | ConvertFrom-Json
+            }
+        }
+
+        It 'removes no groups when the audit export is declined, and reports Partial with a warning' {
+            # No to the export, then Yes to All for the remaining prompts.
+            $result = Invoke-OffboardingWithAnswer -Answer 'N', 'A'
+
+            $result.Status | Should -Be 'Partial'
+            $result.AuditFile | Should -BeNullOrEmpty
+            @($result.GroupsRemoved).Count | Should -Be 0
+            $result.Calls | Should -Not -Contain 'Remove-ADGroupMember'
+            $result.Calls | Should -Contain 'Disable-ADAccount'
+            $result.Calls | Should -Contain 'Move-ADObject'
+            $result.Actions | Should -Be @('Disabled account', 'Recorded ticket in description', 'Moved to disabled users OU')
+            $result.Message | Should -BeLike '*Not done (declined): export group memberships, remove 2 group membership(s), skipped because the audit export was declined. Run Remove-ItoUser again to finish.'
+            $result.Warnings | Should -Be @("Offboarding omar.haddad: $($result.Message)")
+            @(Get-ChildItem -LiteralPath $script:auditPath).Count | Should -Be 0
+        }
+
+        It 'changes nothing and reports Declined when every step is declined' {
+            # No to All.
+            $result = Invoke-OffboardingWithAnswer -Answer 'L'
+
+            $result.Status | Should -Be 'Declined'
+            $result.Message | Should -BeLike 'No changes were made: every step was declined (*'
+            $result.Calls | Should -BeNullOrEmpty
+            @(Get-ChildItem -LiteralPath $script:auditPath).Count | Should -Be 0
+        }
+
+        It 'offboards completely when every step is accepted' {
+            # Yes to All.
+            $result = Invoke-OffboardingWithAnswer -Answer 'A'
+
+            $result.Status | Should -Be 'Offboarded'
+            $result.AuditFile | Should -Not -BeNullOrEmpty
+            @($result.GroupsRemoved).Count | Should -Be 2
+            @($result.Calls | Where-Object { $_ -eq 'Remove-ADGroupMember' }).Count | Should -Be 2
+        }
     }
 
     It 'rejects <Case>' -ForEach @(

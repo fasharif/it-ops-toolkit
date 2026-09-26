@@ -19,6 +19,14 @@ function Remove-ItoUser {
         Every step checks the current state first, so running the command again for the same
         leaver changes nothing and reports AlreadyOffboarded.
 
+        ConfirmImpact is High, so PowerShell asks before each step. If you answer No to the
+        audit export, the group memberships are not removed either: memberships are never removed
+        without a record. The other steps you accept still run, and the result says what was not
+        done. Run the command again to finish.
+
+        The Status of each result is Offboarded, AlreadyOffboarded, Planned (-WhatIf), Partial
+        (you declined some steps), Declined (you declined every step) or Failed.
+
     .PARAMETER Identity
         The leaver's sAMAccountName. Accepts pipeline input, including objects with a
         SamAccountName property such as the output of Get-ADUser.
@@ -120,7 +128,9 @@ function Remove-ItoUser {
         }
         $actions = New-Object -TypeName System.Collections.Generic.List[string]
         $removed = New-Object -TypeName System.Collections.Generic.List[string]
-        $planned = $false
+        # Steps that were not carried out: planned under -WhatIf, or answered No at a prompt.
+        $notDone = New-Object -TypeName System.Collections.Generic.List[string]
+        $whatIf = [bool]$WhatIfPreference
 
         try {
             $filter = '(&(objectCategory=person)(objectClass=user)(sAMAccountName={0}))' -f (ConvertTo-ItoLdapFilterValue -Value $Identity)
@@ -140,15 +150,17 @@ function Remove-ItoUser {
             $stamp = $utcNow.ToString('yyyyMMddTHHmmssZ', [System.Globalization.CultureInfo]::InvariantCulture)
 
             # 1. Audit export first: group removal must never happen without a record of what was removed.
+            $auditWritten = $groups.Count -eq 0
             if ($groups.Count -gt 0) {
                 $auditFile = Join-Path -Path $auditFolder -ChildPath ('{0}_{1}_{2}_groups.csv' -f $Identity, $ticket, $stamp)
                 if ($PSCmdlet.ShouldProcess($auditFile, "Export $($groups.Count) group membership(s) of $Identity")) {
                     Export-ItoGroupAudit -Path $auditFile -SamAccountName $Identity -TicketNumber $ticket -Groups $groups -ExportedAtUtc $utcNow
                     $result.AuditFile = $auditFile
                     $actions.Add('Exported group memberships')
+                    $auditWritten = $true
                 }
                 else {
-                    $planned = $true
+                    $notDone.Add('export group memberships')
                 }
             }
 
@@ -159,7 +171,7 @@ function Remove-ItoUser {
                     $actions.Add('Disabled account')
                 }
                 else {
-                    $planned = $true
+                    $notDone.Add('disable the account')
                 }
             }
 
@@ -178,19 +190,29 @@ function Remove-ItoUser {
                     $actions.Add('Recorded ticket in description')
                 }
                 else {
-                    $planned = $true
+                    $notDone.Add('record the ticket in the description')
                 }
             }
 
-            # 4. Remove group memberships.
-            foreach ($group in $groups) {
-                if ($PSCmdlet.ShouldProcess($group, "Remove $Identity from group")) {
-                    Remove-ADGroupMember -Identity $group -Members $dn @adParameters -Confirm:$false -ErrorAction Stop
-                    $removed.Add($group)
+            # 4. Remove group memberships, but only once they are on record. Under -WhatIf the
+            # removals are still listed, so the preview shows the whole plan.
+            if ($auditWritten -or $whatIf) {
+                $declinedGroups = 0
+                foreach ($group in $groups) {
+                    if ($PSCmdlet.ShouldProcess($group, "Remove $Identity from group")) {
+                        Remove-ADGroupMember -Identity $group -Members $dn @adParameters -Confirm:$false -ErrorAction Stop
+                        $removed.Add($group)
+                    }
+                    else {
+                        $declinedGroups++
+                    }
                 }
-                else {
-                    $planned = $true
+                if ($declinedGroups -gt 0) {
+                    $notDone.Add(('remove {0} group membership(s)' -f $declinedGroups))
                 }
+            }
+            else {
+                $notDone.Add(('remove {0} group membership(s), skipped because the audit export was declined' -f $groups.Count))
             }
             if ($removed.Count -gt 0) {
                 $actions.Add(('Removed from {0} group(s)' -f $removed.Count))
@@ -205,21 +227,31 @@ function Remove-ItoUser {
                     $actions.Add('Moved to disabled users OU')
                 }
                 else {
-                    $planned = $true
+                    $notDone.Add('move the account to the disabled users OU')
                 }
             }
 
-            if ($planned) {
-                $result.Status = 'Planned'
-                $result.Message = 'No changes were made (WhatIf or declined).'
-            }
-            elseif ($actions.Count -eq 0) {
+            if ($notDone.Count -eq 0 -and $actions.Count -eq 0) {
                 $result.Status = 'AlreadyOffboarded'
                 $result.Message = "$Identity is already offboarded. No changes were needed."
             }
-            else {
+            elseif ($notDone.Count -eq 0) {
                 $result.Status = 'Offboarded'
                 $result.Message = '{0} offboarded under {1}: {2}.' -f $Identity, $ticket, ($actions -join ', ')
+            }
+            elseif ($whatIf) {
+                $result.Status = 'Planned'
+                $result.Message = 'No changes were made (-WhatIf). Would {0}.' -f ($notDone -join ', ')
+            }
+            elseif ($actions.Count -eq 0) {
+                $result.Status = 'Declined'
+                $result.Message = 'No changes were made: every step was declined ({0}).' -f ($notDone -join ', ')
+                Write-Warning ('Offboarding {0}: {1}' -f $Identity, $result.Message)
+            }
+            else {
+                $result.Status = 'Partial'
+                $result.Message = '{0} was only partly offboarded under {1}. Done: {2}. Not done (declined): {3}. Run Remove-ItoUser again to finish.' -f $Identity, $ticket, ($actions -join ', '), ($notDone -join ', ')
+                Write-Warning ('Offboarding {0}: {1}' -f $Identity, $result.Message)
             }
         }
         catch {
