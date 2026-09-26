@@ -7,6 +7,8 @@ function ConvertTo-ItoHashtable {
         PSCustomObject graph instead. The hashtables are case-sensitive, as JSON keys are, unlike
         PowerShell's @{}: a setting written as 'OU' must not be read as 'ou'.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseLiteralInitializerForHashtable', '',
+        Justification = 'JSON keys are case-sensitive, and a literal @{} is not.')]
     [CmdletBinding()]
     [OutputType([hashtable], [object[]])]
     param(
