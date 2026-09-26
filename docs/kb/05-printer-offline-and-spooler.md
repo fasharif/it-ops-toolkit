@@ -32,7 +32,9 @@ Linux with CUPS.
 
    A port name starting with `WSD` means the printer was added through Web Services for Devices,
    which often shows printers as offline after they change address.
-5. Run `Get-ItoHealthReport`: a stopped Print Spooler appears under "Automatic services".
+5. Run `Get-ItoHealthReport`: a Print Spooler that crashed appears under "Automatic services" as
+   a Warning, with its exit code. One that someone stopped cleanly (exit code 0) is listed in the
+   detail for information, so read the detail too.
 
 ## Fix
 

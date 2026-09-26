@@ -56,6 +56,9 @@ attach the completed list to the ticket.
 - The department is not in the onboarding configuration: the configuration owner must add the OU
   and groups; do not create the account by hand in the wrong OU.
 - `New-ItoUser` reports a missing OU or group: fix the directory or the configuration first.
+- Running the feed again shows `Exists` with a warning that the account is not in a configured
+  group: an earlier group change failed, or the person has moved team. Check with the manager
+  before adding the group by hand; the tools do not add it for you.
 - Access requests that need approval from a data owner (finance systems, HR data).
 
 ## Prevention
