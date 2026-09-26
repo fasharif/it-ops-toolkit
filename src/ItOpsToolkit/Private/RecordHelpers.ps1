@@ -62,17 +62,27 @@ function Test-ItoOnboardingRecord {
         $problems.Add("EmployeeId '$($Row.EmployeeId)' must be 1-16 letters, digits or hyphens.")
     }
 
+    $namesValid = $true
     foreach ($field in @('GivenName', 'Surname')) {
         $value = $Row[$field]
         if ([string]::IsNullOrEmpty($value)) {
             $problems.Add("$field is required.")
+            $namesValid = $false
         }
         elseif (-not (Test-ItoPersonName -Name $value)) {
             $problems.Add("$field '$value' contains characters that are not allowed in a name.")
+            $namesValid = $false
         }
         elseif ((ConvertTo-ItoAsciiName -Name $value).Length -eq 0) {
             $problems.Add("$field '$value' has no letters that can be used in an account name. Add a Latin-script spelling to the HR record.")
+            $namesValid = $false
         }
+    }
+
+    # The account's CN is 'GivenName Surname', and Active Directory limits CN to 64 characters.
+    $fullName = '{0} {1}' -f $Row.GivenName, $Row.Surname
+    if ($namesValid -and $fullName.Length -gt 64) {
+        $problems.Add("The full name '$fullName' is $($fullName.Length) characters long. Active Directory limits the common name (CN) to 64 characters, so shorten the name in the HR record.")
     }
 
     if ([string]::IsNullOrEmpty($Row.Department)) {

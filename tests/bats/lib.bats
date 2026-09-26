@@ -229,6 +229,7 @@ E6,Sara,Ali,Finance,,Lina Haddad,
 E7,Sara,Ali,Finance,,,05/10/2026
 E8,Sara,Ali,Finance,,,
 E8,Sara,Ali,Finance,,,
+E9,Anastasia-Konstantina,Montgomery-Smithson-Fitzwilliam-Worthington,Finance,,,
 EOF
     run hrfeed "$BATS_TEST_TMPDIR/feed.csv"
     assert_success
@@ -241,6 +242,7 @@ EOF
     assert_line --index 6 --partial "StartDate '05/10/2026' must use the format yyyy-MM-dd."
     [[ ${lines[7]} != *"appears more than once"* ]]
     assert_line --index 8 --partial "EmployeeId 'E8' appears more than once in this feed."
+    assert_line --index 9 --partial "The full name 'Anastasia-Konstantina Montgomery-Smithson-Fitzwilliam-Worthington' is 65 characters long. Active Directory limits the common name (CN) to 64 characters, so shorten the name in the HR record."
 }
 
 @test 'hrfeed rejects a feed without the required columns' {

@@ -214,14 +214,24 @@ password_in_ldif() {
     assert_line --regexp '^1 +sara\.ali3 +Created'
 }
 
-@test 'adds the account name to the CN when the OU already has someone with that name' {
+@test 'adds the account name to the CN when the OU already has an object with that name' {
     printf 'dn: CN=Sara Ali,OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test\n' |
-        ldb_respond one '(&(objectClass=user)(cn=Sara Ali))'
+        ldb_respond one '(cn=Sara Ali)'
     feed 'E1,Sara,Ali,Finance,,,'
     run onboard
     assert_success
     run grep '^dn: ' "$FAKE_LDB/ldbadd.ldif"
     assert_output 'dn: CN=Sara Ali (sara.ali),OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test'
+}
+
+@test 'uses the account name as the CN when the name plus the account name would pass 64 characters' {
+    printf 'dn: CN=Anastasia-Konstantina Montgomery-Smithsonian,OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test\n' |
+        ldb_respond one '(cn=Anastasia-Konstantina Montgomery-Smithsonian)'
+    feed 'E1,Anastasia-Konstantina,Montgomery-Smithsonian,Finance,,,'
+    run onboard
+    assert_success
+    run grep '^dn: ' "$FAKE_LDB/ldbadd.ldif"
+    assert_output 'dn: CN=anastasiakonstantina,OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test'
 }
 
 @test 'base64-encodes names with accents in the LDIF' {

@@ -230,12 +230,17 @@ function New-ItoUser {
                 $result.SamAccountName = $samAccountName
                 $result.UserPrincipalName = $userPrincipalName
 
-                # Two people with the same name in one OU would clash on the CN, so add the account name.
+                # The CN must be unique in the OU, across every object class. When the name is taken,
+                # add the account name, or use the account name alone if that would pass the
+                # 64-character limit on CN.
                 $commonName = $displayName
-                $nameFilter = '(&(objectClass=user)(cn={0}))' -f (ConvertTo-ItoLdapFilterValue -Value $displayName)
-                $sameName = @(Get-ADUser -LDAPFilter $nameFilter -SearchBase $department.Ou -SearchScope OneLevel @adParameters)
+                $nameFilter = '(cn={0})' -f (ConvertTo-ItoLdapFilterValue -Value $displayName)
+                $sameName = @(Get-ADObject -LDAPFilter $nameFilter -SearchBase $department.Ou -SearchScope OneLevel @adParameters)
                 if ($sameName.Count -gt 0) {
                     $commonName = '{0} ({1})' -f $displayName, $samAccountName
+                    if ($commonName.Length -gt 64) {
+                        $commonName = $samAccountName
+                    }
                 }
 
                 $managerDn = $null

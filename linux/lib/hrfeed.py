@@ -39,6 +39,7 @@ NAME_PUNCTUATION = frozenset(" .'-\u2019")  # \u2019 is the typographic apostrop
 SEPARATOR = "\x1f"
 MAX_NAME_LENGTH = 64
 MAX_TITLE_LENGTH = 64
+MAX_CN_LENGTH = 64  # the account's CN is "GivenName Surname"; Active Directory allows 64 characters
 
 
 def ascii_name(name: str) -> str:
@@ -117,8 +118,15 @@ def row_problems(row: dict[str, str], seen_ids: set[str]) -> list[str]:
     PowerShell module, so the first valid occurrence is kept.
     """
     problems = employee_id_problems(row["EmployeeId"])
-    problems += name_problems("GivenName", row["GivenName"])
-    problems += name_problems("Surname", row["Surname"])
+    given_problems = name_problems("GivenName", row["GivenName"])
+    surname_problems = name_problems("Surname", row["Surname"])
+    problems += given_problems + surname_problems
+    full_name = f"{row['GivenName']} {row['Surname']}"
+    if not given_problems and not surname_problems and len(full_name) > MAX_CN_LENGTH:
+        problems.append(
+            f"The full name '{full_name}' is {len(full_name)} characters long. Active Directory limits "
+            f"the common name (CN) to {MAX_CN_LENGTH} characters, so shorten the name in the HR record."
+        )
     problems += other_field_problems(row)
     if not problems:
         key = row["EmployeeId"].lower()

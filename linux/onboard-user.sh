@@ -317,10 +317,14 @@ while IFS="$ITO_US" read -r -u 3 row employee_id given surname department title 
     sam=$RESOLVED_NAME
     upn="$sam@$UPN_SUFFIX"
 
-    # Two people with the same name in one OU would clash on the CN, so add the account name.
+    # The CN must be unique in the OU, across every object class. When the name is taken, add
+    # the account name, or use the account name alone if that would pass the 64-character limit.
     cn=$display
-    if ldap_search "$ou" one "(&(objectClass=user)(cn=$(ldap_filter_escape "$display")))" dn 2>"$ERR_FILE" | ldif_has_entry; then
+    if ldap_search "$ou" one "(cn=$(ldap_filter_escape "$display"))" dn 2>"$ERR_FILE" | ldif_has_entry; then
         cn="$display ($sam)"
+        if ((${#cn} > 64)); then
+            cn=$sam
+        fi
     fi
 
     warnings=''

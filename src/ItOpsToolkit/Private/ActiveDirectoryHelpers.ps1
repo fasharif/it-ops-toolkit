@@ -127,8 +127,10 @@ function Resolve-ItoSamAccountName {
     .SYNOPSIS
         Finds the first free sAMAccountName for a new starter.
     .DESCRIPTION
-        A candidate is free when no directory account uses it as sAMAccountName or as the
-        prefix of its userPrincipalName, and no earlier row in the same batch reserved it.
+        A candidate is free when no directory object (user, group, computer or any other class)
+        uses it as sAMAccountName or as the prefix of its userPrincipalName, and no earlier row in
+        the same batch reserved it. sAMAccountName is unique across all object classes, so a
+        search of users only would miss a group with the same name.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -158,7 +160,7 @@ function Resolve-ItoSamAccountName {
             continue
         }
         $filter = '(|(sAMAccountName={0})(userPrincipalName={0}@{1}))' -f (ConvertTo-ItoLdapFilterValue -Value $candidate), (ConvertTo-ItoLdapFilterValue -Value $UpnSuffix)
-        $existing = Get-ADUser -LDAPFilter $filter @AdParameters
+        $existing = Get-ADObject -LDAPFilter $filter @AdParameters
         if ($null -eq $existing) {
             [void]$Reserved.Add($candidate)
             return $candidate

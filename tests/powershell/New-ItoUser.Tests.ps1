@@ -33,19 +33,22 @@ Describe 'New-ItoUser' {
                 if ($script:takenEmployeeIds -contains $Matches[1]) { return New-TestAdUser -SamAccountName 'existing.user' }
                 return
             }
-            if ($LDAPFilter -match '^\(\|\(sAMAccountName=([^)]+)\)') {
-                if ($script:takenNames -contains $Matches[1]) { return New-TestAdUser -SamAccountName $Matches[1] }
-                return
-            }
-            if ($LDAPFilter -match '^\(&\(objectClass=user\)\(cn=(.+)\)\)$') {
-                if ($script:sameNameInOu -contains $Matches[1]) { return New-TestAdUser -SamAccountName 'someone.else' }
-                return
-            }
             if ($LDAPFilter -match '^\(sAMAccountName=(.+)\)$') {
                 if ($script:managers -contains $Matches[1]) { return New-TestAdUser -SamAccountName $Matches[1] -DistinguishedName "CN=Manager,OU=Staff,DC=corp,DC=itops,DC=test" }
                 return
             }
             throw "Unexpected Get-ADUser call: $LDAPFilter"
+        }
+        Mock -ModuleName ItOpsToolkit Get-ADObject {
+            if ($LDAPFilter -match '^\(\|\(sAMAccountName=([^)]+)\)') {
+                if ($script:takenNames -contains $Matches[1]) { return [pscustomobject]@{ Name = $Matches[1]; ObjectClass = 'group' } }
+                return
+            }
+            if ($LDAPFilter -match '^\(cn=(.+)\)$') {
+                if ($script:sameNameInOu -contains $Matches[1]) { return [pscustomobject]@{ Name = $Matches[1]; ObjectClass = 'contact' } }
+                return
+            }
+            throw "Unexpected Get-ADObject call: $LDAPFilter"
         }
         Mock -ModuleName ItOpsToolkit New-ADUser {
             $script:created.Add([pscustomobject]@{
@@ -87,11 +90,13 @@ Describe 'New-ItoUser' {
             $results[2].Row | Should -Be 3
         }
 
-        It 'skips account names that are already taken in the directory' {
+        It 'skips account names that any directory object already uses' {
+            # sAMAccountName is unique across users, groups and computers, so the check covers every class.
             $script:takenNames = @('sara.ali', 'sara.ali2')
             $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
             $result = New-ItoUser -Path $feed -ConfigPath $script:configPath -Confirm:$false
             $result.SamAccountName | Should -Be 'sara.ali3'
+            Should -Invoke -ModuleName ItOpsToolkit Get-ADObject -Times 3 -Exactly -ParameterFilter { $LDAPFilter -like '(|(sAMAccountName=*' }
         }
 
         It 'uses the flast format when the configuration asks for it' {
@@ -132,11 +137,22 @@ Describe 'New-ItoUser' {
             $results[1].Warnings | Should -Be @("Manager 'no.such' was not found, so no manager was set.")
         }
 
-        It 'adds the account name to the CN when the OU already has someone with the same name' {
+        It 'adds the account name to the CN when the OU already has an object with the same name' {
             $script:sameNameInOu = @('Sara Ali')
             $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
             $null = New-ItoUser -Path $feed -ConfigPath $script:configPath -Confirm:$false
             $script:created[0].Name | Should -Be 'Sara Ali (sara.ali)'
+            Should -Invoke -ModuleName ItOpsToolkit Get-ADObject -Times 1 -Exactly -ParameterFilter {
+                $LDAPFilter -eq '(cn=Sara Ali)' -and $SearchBase -eq 'OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test' -and $SearchScope -eq 'OneLevel'
+            }
+        }
+
+        It 'uses the account name as the CN when the name plus the account name would pass 64 characters' {
+            $script:sameNameInOu = @('Anastasia-Konstantina Montgomery-Smithsonian')
+            $feed = New-Feed -Rows @('E1,Anastasia-Konstantina,Montgomery-Smithsonian,Finance,,,')
+            $null = New-ItoUser -Path $feed -ConfigPath $script:configPath -Confirm:$false
+            $script:created[0].Name | Should -Be 'anastasiakonstantina'
+            $script:created[0].DisplayName | Should -Be 'Anastasia-Konstantina Montgomery-Smithsonian'
         }
 
         It 'records a failed group addition as a warning without failing the row' {
@@ -168,15 +184,17 @@ Describe 'New-ItoUser' {
                 'E5,"Smith, John",Doe,Finance,,,'
                 ('E6,{0},Khan,Finance,,,' -f (-join ([char[]](0x0633, 0x0627, 0x0631, 0x0629))))
                 'E7,Aisha,Al Mansoori,Finance,,,'
+                'E8,Anastasia-Konstantina,Montgomery-Smithson-Fitzwilliam-Worthington,Finance,,,'
             )
             $results = @(New-ItoUser -Path $feed -ConfigPath $script:configPath -Confirm:$false -WarningAction SilentlyContinue)
-            $results.Status | Should -Be @('Invalid', 'Invalid', 'Invalid', 'Invalid', 'Invalid', 'Invalid', 'Created')
+            $results.Status | Should -Be @('Invalid', 'Invalid', 'Invalid', 'Invalid', 'Invalid', 'Invalid', 'Created', 'Invalid')
             $results[0].Message | Should -BeLike "Department 'Marketing' is not in the configuration. Known departments: Finance, IT, Sales."
             $results[1].Message | Should -BeLike '*yyyy-MM-dd*'
             $results[2].Message | Should -BeLike "EmployeeId 'E 3'*"
             $results[3].Message | Should -Be 'GivenName is required.'
             $results[4].Message | Should -BeLike '*characters that are not allowed*'
             $results[5].Message | Should -BeLike '*Latin-script spelling*'
+            $results[7].Message | Should -Be "The full name 'Anastasia-Konstantina Montgomery-Smithson-Fitzwilliam-Worthington' is 65 characters long. Active Directory limits the common name (CN) to 64 characters, so shorten the name in the HR record."
             $script:created.SamAccountName | Should -Be @('aisha.almansoori')
         }
 
