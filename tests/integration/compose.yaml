@@ -1,6 +1,10 @@
 # Integration test environment: a throwaway Samba AD domain controller and a client container
 # that runs the Bash onboarding and offboarding scripts against it. Nothing is published to
 # the host. Start it with tests/integration/run.sh, which also cleans up.
+#
+# There are no fixed container names: Compose names containers after the project, and run.sh
+# gives each run its own project name, so runs can happen side by side. ITO_TEST_IMAGE changes
+# the image names.
 
 name: it-ops-toolkit-it
 
@@ -10,8 +14,7 @@ services:
       context: ../..
       dockerfile: tests/docker/Dockerfile
       target: dc
-    image: it-ops-toolkit-test:dc
-    container_name: it-ops-toolkit-dc
+    image: ${ITO_TEST_IMAGE:-it-ops-toolkit-test}:dc
     hostname: dc1
     environment:
       SAMBA_REALM: CORP.ITOPS.TEST
@@ -31,8 +34,7 @@ services:
       context: ../..
       dockerfile: tests/docker/Dockerfile
       target: test
-    image: it-ops-toolkit-test:test
-    container_name: it-ops-toolkit-client
+    image: ${ITO_TEST_IMAGE:-it-ops-toolkit-test}:test
     depends_on:
       dc:
         condition: service_healthy

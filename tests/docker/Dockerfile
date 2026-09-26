@@ -9,8 +9,11 @@
 #          domain on first start. Used only by the integration tests.
 #
 # Build context: the repository root.
+#
+# The base image is pinned by digest (Dependabot updates it). The apt packages come from Debian 13
+# at build time; tests/integration/run.sh prints the Samba version each run tested.
 
-FROM debian:trixie-slim AS tools
+FROM debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS tools
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \

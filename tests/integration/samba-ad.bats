@@ -143,6 +143,19 @@ onboard() {
     assert_output --partial '# 1 entries'
 }
 
+@test 'a rerun warns, and changes nothing, when an existing account has lost a configured group' {
+    samba-tool group removemembers Finance-Share-RW sara.ali -H "$ITO_LDAP_URL" -A "$ITO_AUTH_FILE" >/dev/null
+    run onboard --csv examples/new-starters.csv
+    assert_success
+    assert_line --regexp '^1 +sara\.ali +Exists '
+    assert_line --regexp "^ +Warning: The existing account is not in the configured group 'Finance-Share-RW'\."
+    assert_output --partial 'Onboarding summary: 5 exists.'
+    run attribute sara.ali memberOf
+    refute_line 'CN=Finance-Share-RW,CN=Users,DC=corp,DC=itops,DC=test'
+    # Put it back for the offboarding tests below.
+    samba-tool group addmembers Finance-Share-RW sara.ali -H "$ITO_LDAP_URL" -A "$ITO_AUTH_FILE" >/dev/null
+}
+
 @test 'an edge-case feed reports its bad rows and still creates the good ones' {
     run onboard --csv tests/integration/fixtures/edge-cases.csv
     assert_failure 1
