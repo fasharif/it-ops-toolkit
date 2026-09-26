@@ -128,8 +128,13 @@ last_error() {
     printf '%s' "${line:0:300}"
 }
 
-if ! python3 "$ITO_LIB_DIR/hrfeed.py" "$CSV_FILE" >"$FEED_FILE" 2>"$ERR_FILE"; then
-    die "$(head -n 1 "$ERR_FILE")" 65
+# -I (isolated mode): ignore PYTHON* variables and user site-packages, and do not put the
+# script's folder first on the import path, so no file next to hrfeed.py can shadow a
+# standard library module.
+if ! python3 -I "$ITO_LIB_DIR/hrfeed.py" "$CSV_FILE" >"$FEED_FILE" 2>"$ERR_FILE"; then
+    # hrfeed.py never handles passwords, so all of its error output is safe to show. Expected
+    # problems are one line; anything else is a Python traceback that needs every line.
+    die "$(<"$ERR_FILE")" 65
 fi
 if [[ ! -s $FEED_FILE ]]; then
     warn "The HR feed '$CSV_FILE' has no data rows."

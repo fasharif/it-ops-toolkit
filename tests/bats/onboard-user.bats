@@ -343,6 +343,22 @@ password_in_ldif() {
     assert_output --partial 'is missing required columns: GivenName, Surname, Department.'
 }
 
+@test 'shows the whole error when the feed reader fails unexpectedly, and runs it in isolated mode' {
+    feed 'E1,Sara,Ali,Finance,,,'
+    # shellcheck disable=SC2016 # the fake's variables expand when it runs
+    fake python3 'printf "%s\n" "$*" >"$FAKE_LDB/python3.args"
+printf "Traceback (most recent call last):\n" >&2
+printf "  File hrfeed.py, line 9, in <module>\n" >&2
+printf "OSError: [Errno 5] Input/output error\n" >&2
+exit 1'
+    run onboard --dry-run
+    assert_failure 65
+    assert_output --partial 'Traceback (most recent call last):'
+    assert_output --partial 'OSError: [Errno 5] Input/output error'
+    run cat "$FAKE_LDB/python3.args"
+    assert_output --regexp '^-I .*/linux/lib/hrfeed\.py '
+}
+
 @test 'explains a missing command' {
     isolate_path
     feed 'E1,Sara,Ali,Finance,,,'
