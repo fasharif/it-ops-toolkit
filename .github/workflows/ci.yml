@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Analyse and test
         shell: pwsh
-        run: ./scripts/Invoke-Tests.ps1 -MinimumCoverage 80
+        run: ./scripts/Invoke-Tests.ps1 -Install -MinimumCoverage 80
       - name: Keep test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -37,10 +37,10 @@ jobs:
       - uses: actions/checkout@v7
       - name: Windows PowerShell 5.1
         shell: powershell
-        run: .\scripts\Invoke-Tests.ps1 -Stage Test -MinimumCoverage 80
+        run: .\scripts\Invoke-Tests.ps1 -Stage Test -Install -MinimumCoverage 80
       - name: PowerShell 7
         shell: pwsh
-        run: .\scripts\Invoke-Tests.ps1 -Stage Test -MinimumCoverage 80
+        run: .\scripts\Invoke-Tests.ps1 -Stage Test -Install -MinimumCoverage 80
       - name: Keep test results
         if: always()
         uses: actions/upload-artifact@v7
