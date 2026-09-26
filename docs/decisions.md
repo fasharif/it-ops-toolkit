@@ -39,14 +39,22 @@ a CSV, a log or the console is how passwords end up in tickets and chat.
 
 **Decision.** Passwords are generated from the operating system's cryptographic random number
 generator, set together with "must change at next logon", and delivered only as CMS
-(PKCS #7) encrypted files for a service desk certificate: `Protect-CmsMessage` on Windows,
-`openssl cms` on Linux. The PowerShell result object also carries the password as a
+(PKCS #7, AES-256) encrypted files for a service desk certificate: .NET's `EnvelopedCms` class
+in the PowerShell module, `openssl cms` on Linux. The module does not call
+`Protect-CmsMessage`: PowerShell module logging (event 4103) records the value of every command
+parameter, so `-Content` would put the password in the event log wherever that logging is
+enabled. The password goes from a `SecureString` to a byte array that is cleared afterwards,
+through method calls only. The PowerShell result object also carries the password as a
 `SecureString`. Tests check that the password never appears in output streams, transcripts,
-summaries, command lines or tool errors.
+summaries, command lines, tool errors or a `ParameterBinding` trace, which sees the same
+parameter values as module logging. Module logging itself was not switched on for the tests,
+because that is a system policy change.
 
-**Consequences.** The service desk needs a certificate with the Document Encryption enhanced key
-usage and its private key to read the files. Both tools produce standard CMS, so a file written
-by PowerShell can be decrypted with openssl and the other way round; a Pester test checks this.
+**Consequences.** The service desk needs a certificate with an RSA key and the Document
+Encryption enhanced key usage, and its private key to read the files (`Unprotect-CmsMessage` or
+`openssl cms -decrypt`). The certificate can be given as a file, an object or a thumbprint in a
+personal store. Both tools produce standard CMS, so a file written by PowerShell can be
+decrypted with openssl and the other way round; a Pester test checks this.
 
 ## 4. Create Samba accounts with one ldbadd, with the password on standard input
 

@@ -147,7 +147,7 @@ share the JSON configuration and a fixture file of account-name test cases
 | Windows automation | PowerShell module, Windows PowerShell 5.1 and PowerShell 7 | What Windows help desks already run; the `ActiveDirectory` module is the supported way to manage AD |
 | Linux automation | Bash, `samba-tool`, ldb tools, `jq` | Available on any Samba administration host; no extra runtime |
 | CSV parsing on Linux | Python 3 standard library (`linux/lib/hrfeed.py`) | Bash has no reliable CSV parser; Python is already required by `samba-tool` |
-| Password delivery | CMS encryption (`Protect-CmsMessage`, `openssl cms`) | Standard format both platforms read; only the certificate holder can decrypt |
+| Password delivery | CMS encryption (.NET `EnvelopedCms`, `openssl cms`) | Standard format that `Unprotect-CmsMessage` and `openssl cms` both read; only the certificate holder can decrypt; the password never passes through a command parameter, so module logging cannot record it |
 | Network checks | .NET `System.Net` classes | Same code on Windows and Linux, and testable without Windows-only cmdlets |
 | Tests | Pester 5, bats-core, a Samba AD DC in Docker | Unit tests with mocks and fakes, plus a real directory for the Bash scripts |
 | Linting | PSScriptAnalyzer, shellcheck, ruff, mypy `--strict`, actionlint | One linter per language, all clean |

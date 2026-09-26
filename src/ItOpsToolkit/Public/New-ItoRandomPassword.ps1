@@ -82,7 +82,8 @@ function New-ItoRandomPassword {
                 $characters[$j] = $swap
             }
 
-            $candidate = New-Object -TypeName string -ArgumentList (, $characters)
+            # A method call, not New-Object: module logging records the arguments of commands.
+            $candidate = [string]::new($characters)
             $clash = $false
             foreach ($value in $excluded) {
                 if ($candidate.IndexOf($value, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {

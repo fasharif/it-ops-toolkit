@@ -357,8 +357,87 @@ Describe 'New-ItoUser' {
             Should -Invoke -ModuleName ItOpsToolkit New-ADUser -Times 0 -Exactly
         }
 
+        It 'accepts the thumbprint of a certificate in a personal store' {
+            $delivery = Join-Path -Path $TestDrive -ChildPath 'delivery-thumbprint'
+            $null = New-Item -ItemType Directory -Path $delivery -Force
+            $script:storeCertificate = (New-TestDeliveryCertificate -Directory $TestDrive).Certificate
+            Mock -ModuleName ItOpsToolkit Get-ItoStoreCertificate { $script:storeCertificate } -ParameterFilter { $Thumbprint -eq $script:storeCertificate.Thumbprint }
+            $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
+
+            # Thumbprints are often copied with spaces between the byte pairs.
+            $spaced = ($script:storeCertificate.Thumbprint -split '(..)' | Where-Object { $_ }) -join ' '
+            $result = New-ItoUser -Path $feed -ConfigPath $script:configPath -DeliveryPath $delivery -DeliveryCertificate $spaced -Confirm:$false
+
+            $result.DeliveryFile | Should -Be (Join-Path -Path $delivery -ChildPath 'sara.ali.cms')
+            $decrypted = Unprotect-CmsMessage -Path $result.DeliveryFile -To $script:storeCertificate
+            $decrypted | Should -Match 'Account: sara.ali'
+        }
+
+        It 'explains a thumbprint that is in neither personal store' {
+            Mock -ModuleName ItOpsToolkit Get-ItoStoreCertificate { }
+            $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
+            { New-ItoUser -Path $feed -ConfigPath $script:configPath -DeliveryPath $TestDrive -DeliveryCertificate 'A1B2C3D4E5F60718293A4B5C6D7E8F9012345678' -WhatIf } |
+                Should -Throw -ExpectedMessage 'No certificate with the thumbprint A1B2C3D4E5F60718293A4B5C6D7E8F9012345678 is in the CurrentUser or LocalMachine personal (My) store.'
+        }
+
+        It 'explains a value that is neither a file nor a thumbprint' {
+            $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
+            { New-ItoUser -Path $feed -ConfigPath $script:configPath -DeliveryPath $TestDrive -DeliveryCertificate '.\missing.cer' -WhatIf } |
+                Should -Throw -ExpectedMessage "*'.\missing.cer' is neither an existing certificate file (.cer or .pem) nor a certificate thumbprint*"
+        }
+
+        It 'accepts an X509Certificate2 object' {
+            $delivery = Join-Path -Path $TestDrive -ChildPath 'delivery-object'
+            $null = New-Item -ItemType Directory -Path $delivery -Force
+            $certificate = (New-TestDeliveryCertificate -Directory $TestDrive).Certificate
+            $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
+            $result = New-ItoUser -Path $feed -ConfigPath $script:configPath -DeliveryPath $delivery -DeliveryCertificate $certificate -Confirm:$false
+            Unprotect-CmsMessage -Path $result.DeliveryFile -To $certificate | Should -Match 'Sign-in name: sara.ali@corp.itops.test'
+        }
+
+        It 'finds a certificate in the CurrentUser personal store by thumbprint' -Skip:(-not $IsLinux) {
+            # Only on Linux, where the CurrentUser store is a folder in the (throwaway) home
+            # directory; on Windows this would change the real certificate store.
+            $certificate = (New-TestDeliveryCertificate -Directory $TestDrive).Certificate
+            $store = New-Object -TypeName System.Security.Cryptography.X509Certificates.X509Store -ArgumentList 'My', 'CurrentUser'
+            $store.Open('ReadWrite')
+            $store.Add($certificate)
+            try {
+                $found = InModuleScope ItOpsToolkit -Parameters @{ Thumbprint = $certificate.Thumbprint } {
+                    Get-ItoStoreCertificate -Thumbprint $Thumbprint
+                }
+                $found.Thumbprint | Should -Be $certificate.Thumbprint
+            }
+            finally {
+                $store.Remove($certificate)
+                $store.Close()
+            }
+        }
+
+        It 'never passes the plain-text password to a command parameter, which module logging would record' {
+            # PowerShell module logging (event 4103) records the value of every parameter binding.
+            # A ParameterBinding trace sees the same bindings, so the password must not appear in it.
+            $delivery = Join-Path -Path $TestDrive -ChildPath 'delivery-trace'
+            $null = New-Item -ItemType Directory -Path $delivery -Force
+            $certificate = New-TestDeliveryCertificate -Directory $TestDrive
+            $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
+            $trace = Join-Path -Path $TestDrive -ChildPath 'binding-trace.txt'
+
+            $null = Trace-Command -Name ParameterBinding -FilePath $trace -Expression {
+                New-ItoUser -Path $feed -ConfigPath $script:configPath -DeliveryPath $delivery -DeliveryCertificate $certificate.CerPath -Confirm:$false
+            }
+
+            $plain = ConvertFrom-TestSecureString -SecureString $script:created[0].Password
+            $text = Get-Content -LiteralPath $trace -Raw
+            $text | Should -Match 'Write-ItoDeliveryFile' -Because 'the trace must have seen the delivery step'
+            $text | Should -Match 'System\.Security\.SecureString' -Because 'the password is bound only as a SecureString'
+            $text | Should -Not -Match ([regex]::Escape($plain))
+            Test-Path -LiteralPath (Join-Path -Path $delivery -ChildPath 'sara.ali.cms') | Should -BeTrue
+        }
+
         It 'keeps the password on the result when the delivery file cannot be written' {
-            Mock -ModuleName ItOpsToolkit Assert-ItoDeliveryCertificate { }
+            $script:assertedCertificate = (New-TestDeliveryCertificate -Directory $TestDrive).Certificate
+            Mock -ModuleName ItOpsToolkit Assert-ItoDeliveryCertificate { $script:assertedCertificate }
             Mock -ModuleName ItOpsToolkit Write-ItoDeliveryFile { throw 'Access to the path is denied.' }
             $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
             $result = New-ItoUser -Path $feed -ConfigPath $script:configPath -DeliveryPath $TestDrive -DeliveryCertificate 'placeholder.cer' -Confirm:$false -WarningAction SilentlyContinue

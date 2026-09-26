@@ -19,8 +19,10 @@ function New-ItoUser {
            -DeliveryPath, as a CMS-encrypted file that only the holder of the delivery
            certificate's private key can read.
 
-        The initial password is never written to the console, verbose output, warnings, the
-        summary file or any log.
+        The initial password is never written to the console, verbose output, warnings or the
+        summary file, and it is never passed to a command parameter as text, which is what
+        PowerShell module logging records. The delivery file is encrypted with .NET's
+        EnvelopedCms class for that reason, rather than with Protect-CmsMessage.
 
         CSV columns: EmployeeId, GivenName, Surname and Department are required. Title, Manager
         (the manager's sAMAccountName) and StartDate (yyyy-MM-dd) are optional.
@@ -43,9 +45,10 @@ function New-ItoUser {
         account. Requires -DeliveryCertificate.
 
     .PARAMETER DeliveryCertificate
-        The certificate used to encrypt delivery files: a path to a .cer or .pem file, a
-        certificate thumbprint or an X509Certificate2 object. It needs the Document Encryption
-        enhanced key usage. Requires -DeliveryPath.
+        The certificate used to encrypt delivery files: a path to a .cer or .pem file, the
+        thumbprint of a certificate in the CurrentUser or LocalMachine personal (My) store, or an
+        X509Certificate2 object. It needs an RSA key and the Document Encryption enhanced key
+        usage. Only the public key is needed here. Requires -DeliveryPath.
 
     .PARAMETER SummaryPath
         Path of a CSV file for the onboarding summary. It never contains passwords.
@@ -137,8 +140,9 @@ function New-ItoUser {
 
         Assert-ItoActiveDirectory
         $config = Read-ItoOnboardingConfig -Path $ConfigPath
+        $deliveryRecipient = $null
         if ($hasDeliveryCertificate) {
-            Assert-ItoDeliveryCertificate -Certificate $DeliveryCertificate
+            $deliveryRecipient = Assert-ItoDeliveryCertificate -Certificate $DeliveryCertificate
         }
 
         $adParameters = Get-ItoAdParameter -Server $Server -Credential $Credential
@@ -303,7 +307,7 @@ function New-ItoUser {
                 if ($hasDeliveryPath) {
                     try {
                         $result.DeliveryFile = Write-ItoDeliveryFile -Directory $DeliveryPath -SamAccountName $samAccountName `
-                            -UserPrincipalName $userPrincipalName -Password $password -Certificate $DeliveryCertificate
+                            -UserPrincipalName $userPrincipalName -Password $password -Certificate $deliveryRecipient
                     }
                     catch {
                         $warnings.Add("The password delivery file could not be written: $($_.Exception.Message.Trim()) The password is still available on the InitialPassword property of this result.")
