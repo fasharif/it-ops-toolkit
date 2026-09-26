@@ -139,7 +139,7 @@ report() {
 }
 
 @test 'grades the last package update by age, from dpkg or rpm' {
-    printf '%s 06:25:01 install vim:amd64 <none> 2:9.1\n' "$(date -u -d '50 days ago' +%Y-%m-%d)" >"$ITO_DPKG_LOG"
+    printf '%s 06:25:01 upgrade libc6:amd64 2.41-11 2.41-12\n' "$(date -u -d '50 days ago' +%Y-%m-%d)" >"$ITO_DPKG_LOG"
     run report
     assert_line --regexp '^Last package update +Warning +[0-9-]{10} \(50 days ago'
     printf '%s 06:25:01 status installed vim:amd64 2:9.1\n' "$(date -u -d '1 day ago' +%Y-%m-%d)" >>"$ITO_DPKG_LOG"
@@ -149,6 +149,35 @@ report() {
     fake rpm "printf '%s\n%s\n' $(date -u -d '70 days ago' +%s) $(date -u -d '90 days ago' +%s)"
     run report
     assert_line --regexp '^Last package update +Critical +[0-9-]{10} \(70 days ago, from the rpm database\)$'
+}
+
+@test 'does not count installing a new package as an update' {
+    {
+        printf '%s 06:25:01 upgrade libc6:amd64 2.41-11 2.41-12\n' "$(date -u -d '50 days ago' +%Y-%m-%d)"
+        printf '%s 09:00:00 install htop:amd64 <none> 3.4.1-5\n' "$(date -u -d '1 day ago' +%Y-%m-%d)"
+    } >"$ITO_DPKG_LOG"
+    run report
+    assert_line --regexp '^Last package update +Warning +[0-9-]{10} \(50 days ago, from the dpkg log\)$'
+}
+
+@test 'reads upgrades from rotated and compressed dpkg logs' {
+    printf '%s 09:00:00 install htop:amd64 <none> 3.4.1-5\n' "$(date -u -d '1 day ago' +%Y-%m-%d)" >"$ITO_DPKG_LOG"
+    printf '%s 06:25:01 upgrade libc6:amd64 2.41-11 2.41-12\n' "$(date -u -d '40 days ago' +%Y-%m-%d)" >"$ITO_DPKG_LOG.1"
+    printf '%s 06:25:01 upgrade openssl:amd64 3.5.1-1 3.5.4-1\n' "$(date -u -d '80 days ago' +%Y-%m-%d)" | gzip >"$ITO_DPKG_LOG.2.gz"
+    run report
+    assert_line --regexp '^Last package update +Warning +[0-9-]{10} \(40 days ago, from the dpkg log\)$'
+    rm -f "$ITO_DPKG_LOG.1"
+    run report
+    assert_line --regexp '^Last package update +Critical +[0-9-]{10} \(80 days ago, from the dpkg log\)$'
+}
+
+@test 'counts from the start of the dpkg logs when they hold no upgrade' {
+    {
+        printf '%s 10:00:00 install base-files:amd64 <none> 13.8\n' "$(date -u -d '70 days ago' +%Y-%m-%d)"
+        printf '%s 09:00:00 install htop:amd64 <none> 3.4.1-5\n' "$(date -u -d '1 day ago' +%Y-%m-%d)"
+    } >"$ITO_DPKG_LOG"
+    run report
+    assert_line --regexp '^Last package update +Critical +No upgrade since the dpkg logs began on [0-9-]{10} \(70 days ago\)$'
 }
 
 @test 'is Unknown about updates when there is no package history' {

@@ -51,8 +51,14 @@ Thresholds (environment variables, whole numbers; defaults match Get-ItoHealthRe
   ITO_UPTIME_DAYS_WARN=14   ITO_UPTIME_DAYS_CRIT=30
   ITO_FAILED_UNITS_WARN=1   ITO_FAILED_UNITS_CRIT=5
   ITO_CRITICAL_LOG_WARN=1   ITO_CRITICAL_LOG_CRIT=5    (journal entries at priority crit or worse)
-  ITO_UPDATE_AGE_WARN=35    ITO_UPDATE_AGE_CRIT=60     (days since the last package install)
+  ITO_UPDATE_AGE_WARN=35    ITO_UPDATE_AGE_CRIT=60     (days since the last package upgrade)
   ITO_UNENCRYPTED_STATUS=Warning                        (OK, Warning or Critical)
+
+Last package update: on Debian and Ubuntu, the newest "upgrade" in /var/log/dpkg.log and its
+rotated copies (dpkg.log.1, dpkg.log.2.gz and so on). Installing a new package does not count,
+because it says nothing about patches. When the logs hold no upgrade at all, the age is counted
+from the oldest log entry. On RPM systems it is the newest package installation or upgrade in
+the rpm database, which cannot tell the two apart.
 
 Exit status follows the Nagios plugin convention: 0 OK, 1 Warning, 2 Critical, 3 Unknown;
 64 for a usage error.
@@ -241,30 +247,49 @@ check_journal() {
     add_check 'Critical journal entries' "$status" "$value" "$threshold" "$detail"
 }
 
-check_updates() {
-    local threshold last='' source='' epoch age status detail='' logs=() log
-    threshold="Warning after ${UPDATE_WARN} days, critical after ${UPDATE_CRIT} days"
-    for log in "$DPKG_LOG" "$DPKG_LOG.1"; do
-        [[ -r $log ]] && logs+=("$log")
+# dpkg_log_lines: prints every line of the dpkg log and its rotated copies, compressed or not.
+dpkg_log_lines() {
+    local log
+    for log in "$DPKG_LOG" "$DPKG_LOG".[0-9]*; do
+        [[ -r $log ]] || continue
+        if [[ $log == *.gz ]]; then
+            gzip -dc -- "$log" 2>/dev/null || true
+        else
+            cat -- "$log"
+        fi
     done
-    if ((${#logs[@]} > 0)); then
-        last=$(awk '($3 == "install" || $3 == "upgrade") && $1 > d { d = $1 } END { print d }' "${logs[@]}")
+}
+
+check_updates() {
+    local threshold last='' oldest='' source='' value epoch age status detail=''
+    threshold="Warning after ${UPDATE_WARN} days, critical after ${UPDATE_CRIT} days (days since the last package upgrade)"
+    if [[ -r $DPKG_LOG ]]; then
+        # Only upgrades count: installing a new package says nothing about patches.
+        last=$(dpkg_log_lines | awk '$3 == "upgrade" && $1 > d { d = $1 } END { print d }')
         source='dpkg log'
+        if [[ -z $last ]]; then
+            oldest=$(dpkg_log_lines | awk '$1 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ && (o == "" || $1 < o) { o = $1 } END { print o }')
+        fi
     elif command -v rpm >/dev/null 2>&1; then
         epoch=$(rpm -qa --qf '%{INSTALLTIME}\n' 2>/dev/null | sort -n | tail -n 1)
         [[ -n $epoch ]] && last=$(date -u -d "@$epoch" +%Y-%m-%d)
         source='rpm database'
     fi
-    if [[ -z $last ]]; then
-        add_check 'Last package update' Unknown '' "$threshold" 'No package installation history was found (dpkg log or rpm database).'
+    if [[ -n $last ]]; then
+        age=$((($(date -u +%s) - $(date -u -d "$last" +%s)) / 86400))
+        value="$last ($age days ago, from the $source)"
+    elif [[ -n $oldest ]]; then
+        age=$((($(date -u +%s) - $(date -u -d "$oldest" +%s)) / 86400))
+        value="No upgrade since the dpkg logs began on $oldest ($age days ago)"
+    else
+        add_check 'Last package update' Unknown '' "$threshold" 'No package history was found (dpkg log or rpm database).'
         return
     fi
-    age=$((($(date -u +%s) - $(date -u -d "$last" +%s)) / 86400))
     status=$(grade "$age" "$UPDATE_WARN" "$UPDATE_CRIT")
     if [[ $status != OK ]]; then
         detail='Install updates: apt-get update && apt-get upgrade, or dnf upgrade. Check unattended-upgrades or dnf-automatic is enabled.'
     fi
-    add_check 'Last package update' "$status" "$last ($age days ago, from the $source)" "$threshold" "$detail"
+    add_check 'Last package update' "$status" "$value" "$threshold" "$detail"
 }
 
 check_encryption() {
