@@ -1,0 +1,15 @@
+# Recorded by scripts/make-samples.sh on 2026-09-26 in PowerShell 7.5 (mcr.microsoft.com/powershell:7.5-ubuntu-24.04 container) on Linux.
+PS> Test-ItoNetwork -SkipTrace | Select-Object -ExpandProperty Layers
+
+Layer            Status Detail
+-----            ------ ------
+IP configuration Pass   eth0: 172.17.0.3
+Default gateway  Pass   172.17.0.1 answers ping (0 ms).
+DNS servers      Pass   DNS servers: 192.168.65.7.
+DNS resolution   Pass   www.microsoft.com resolves to 23.35.101.225.
+TCP port         Pass   Connected to 23.35.101.225 on port 443.
+HTTPS            Pass   TLS handshake completed; the server answered with HTTP status 200.
+Route trace      Skip   Skipped (-SkipTrace).
+
+PS> (Test-ItoNetwork -ComputerName fileserver.corp.itops.test -Port 445 -SkipTrace).Diagnosis
+DNS works, but the name 'fileserver.corp.itops.test' does not resolve. Check the spelling. For an internal name, check that the record exists and that you are on the office network or VPN (split DNS).

@@ -1,17 +1,18 @@
+# Recorded by scripts/make-samples.sh on 2026-09-26 in the Debian 13 test container (tests/docker/Dockerfile, target test) on Docker Desktop, hostname it-ops-test. It is a container, not a server: there is no systemd, LVM or LUKS, which is why some checks are Unknown.
 $ linux/health-report.sh
-Health report for srv-web01
-Generated 2026-09-25T23:24:07Z by it-ops-toolkit health-report.sh
+Health report for it-ops-test
+Generated 2026-09-26T01:26:20Z by it-ops-toolkit health-report.sh
 Overall status: Unknown
 
 Check                      Status    Value
-Disk space /               OK        92.2% free (881.4 GB of 1006.9 GB)
-Disk space /work           OK        38.5% free (173.2 GB of 449.6 GB)
-Memory                     OK        39.6% used (4.5 GB free of 7.4 GB)
-Uptime                     OK        0.1 days
+Disk space /               OK        90.7% free (866.9 GB of 1006.9 GB)
+Disk space /work           OK        31.7% free (142.5 GB of 449.6 GB)
+Memory                     OK        34.3% used (4.8 GB free of 7.4 GB)
+Uptime                     OK        0.2 days
 Pending reboot             OK        No reboot-required flag is set
 Failed systemd units       Unknown   -
 Critical journal entries   Unknown   -
-Last package update        OK        2026-09-25 (0 days ago, from the dpkg log)
+Last package update        OK        No upgrade since the dpkg logs began on 2026-09-25 (1 days ago)
 Disk encryption            Unknown   -
 
 Notes:
@@ -21,15 +22,15 @@ Notes:
 (exit status 3)
 
 $ linux/monitoring.sh --stdout
-#Architecture: Linux srv-web01 6.18.33.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun 18 21:54:43 UTC 2026 x86_64 GNU/Linux
+#Architecture: Linux it-ops-test 6.18.33.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun 18 21:54:43 UTC 2026 x86_64 GNU/Linux
 #CPU physical : 1
 #vCPU : 16
-#Memory Usage: 2996/7559MB (39.64%)
-#Disk Usage: 76086/1007Gb (7%)
-#CPU load: 59.5%
+#Memory Usage: 2597/7559MB (34.36%)
+#Disk Usage: 90790/1007Gb (9%)
+#CPU load: 55.7%
 #Last boot: 2026-09-25 20:58
 #LVM use: no
 #Connections TCP : 0 ESTABLISHED
 #User log: 0
-#Network: IP 172.17.0.3 (3a:79:9d:4f:1d:51)
+#Network: IP 172.17.0.3 (ca:d4:55:6a:67:e8)
 #Sudo : 0 cmd

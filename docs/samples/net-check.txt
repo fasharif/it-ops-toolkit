@@ -1,3 +1,4 @@
+# Recorded by scripts/make-samples.sh on 2026-09-26 in the Debian 13 test container (tests/docker/Dockerfile, target test) on Docker Desktop. Docker's network layer answers ICMP itself, so the route trace is not meaningful.
 $ linux/net-check.sh --max-hops 8 www.microsoft.com
 Network check: www.microsoft.com port 443
 
@@ -11,6 +12,7 @@ HTTPS              Pass   TLS handshake completed; the server answered with HTTP
 Route trace        Info   The trace stops after hop 1 (172.17.0.1); later hops did not answer within 8 hops.
 
 Diagnosis: No fault found: 'www.microsoft.com' resolves and port 443 accepts connections, and HTTPS answers.
+(exit status 0)
 
 $ linux/net-check.sh --no-trace intranet.corp.itops.test
 Network check: intranet.corp.itops.test port 443
@@ -25,3 +27,4 @@ HTTPS              Skip   Skipped because the TCP connection failed.
 Route trace        Skip   Skipped (--no-trace).
 
 Diagnosis: DNS works, but the name 'intranet.corp.itops.test' does not resolve. Check the spelling. For an internal name, check that the record exists and that you are on the office network or VPN (split DNS).
+(exit status 1)
