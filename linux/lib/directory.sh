@@ -8,8 +8,14 @@
 
 ITO_LIB_DIR=${ITO_LIB_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)}
 ITO_US=$'\x1f'
+# ldbsearch exits with the LDAP result code when a search fails; 32 (noSuchObject) means the base
+# DN does not exist. A connection or bind failure exits with 1.
+# shellcheck disable=SC2034 # used by the scripts that source this file
+LDAP_NO_SUCH_OBJECT=32
 
-# ldap_search BASE SCOPE FILTER [ATTRIBUTE...]: prints matching entries as LDIF.
+# ldap_search BASE SCOPE FILTER [ATTRIBUTE...]: prints matching entries as LDIF. Errors go to
+# standard error, except "search error - LDAP error NN ...", which ldbsearch prints on standard
+# output.
 ldap_search() {
     ldbsearch -H "$LDAP_URL" -A "$AUTH_FILE" -b "$1" -s "$2" "$3" "${@:4}"
 }

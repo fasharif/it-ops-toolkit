@@ -179,38 +179,63 @@ unicode_pwd() {
     printf '"%s"' "$1" | iconv -f UTF-8 -t UTF-16LE | base64 -w0
 }
 
-# ou_exists DN: true when the OU exists. Results are cached.
+# directory_search BASE SCOPE FILTER [ATTRIBUTE...]: runs ldap_search and sets SEARCH_OUTPUT and
+# SEARCH_STATUS (ldbsearch's exit status: 0, the LDAP result code such as 32, or 1 for a
+# connection or bind failure) instead of failing. ldbsearch prints some errors ("search error -
+# LDAP error 32 ...") on standard output, so after a failure that output is added to ERR_FILE,
+# where last_error finds it. It sets variables rather than printing, so callers that must keep
+# their caches can run it in this shell.
+SEARCH_OUTPUT=''
+SEARCH_STATUS=0
+directory_search() {
+    SEARCH_STATUS=0
+    SEARCH_OUTPUT=$(ldap_search "$@" 2>"$ERR_FILE") || SEARCH_STATUS=$?
+    if ((SEARCH_STATUS != 0)); then
+        printf '%s\n' "$SEARCH_OUTPUT" >>"$ERR_FILE"
+    fi
+}
+
+# The lookups below return 0 or 1 for a directory answer and 2 when the search itself failed
+# (network, bind or permission errors, with the reason in ERR_FILE). Only answers are cached: a
+# passing network error must not turn every later row for the same department into "not found".
+
+# ou_exists DN: 0 when the OU exists, 1 when it does not, 2 when the search failed.
 declare -A OU_CACHE=()
 ou_exists() {
     local key=${1,,}
     if [[ -z ${OU_CACHE[$key]+set} ]]; then
-        if ldap_search "$1" base '(objectClass=organizationalUnit)' dn 2>"$ERR_FILE" | ldif_has_entry; then
+        directory_search "$1" base '(objectClass=organizationalUnit)' dn
+        if ((SEARCH_STATUS == 0)) && ldif_has_entry <<<"$SEARCH_OUTPUT"; then
             OU_CACHE[$key]=yes
-        else
+        elif ((SEARCH_STATUS == 0 || SEARCH_STATUS == LDAP_NO_SUCH_OBJECT)); then
             OU_CACHE[$key]=no
+        else
+            return 2
         fi
     fi
     [[ ${OU_CACHE[$key]} == yes ]]
 }
 
 # lookup_group NAME: sets GROUP_DN to the DN of the group with that sAMAccountName, or to ''
-# when there is none. Results are cached. It sets a variable rather than printing, because a
-# $(...) subshell would lose the cache.
+# when there is none, and returns 0; returns 2 when the search failed. Results are cached. It
+# sets a variable rather than printing, because a $(...) subshell would lose the cache.
 declare -A GROUP_CACHE=()
 GROUP_DN=''
 lookup_group() {
-    local key=${1,,} found
+    local key=${1,,}
+    GROUP_DN=''
     if [[ -z ${GROUP_CACHE[$key]+set} ]]; then
-        found=$(ldap_search "$BASE_DN" sub "(&(objectClass=group)(sAMAccountName=$(ldap_filter_escape "$1")))" dn 2>"$ERR_FILE" |
-            ldif_values dn | sed -n '1p') || found=''
-        GROUP_CACHE[$key]=$found
+        directory_search "$BASE_DN" sub "(&(objectClass=group)(sAMAccountName=$(ldap_filter_escape "$1")))" dn
+        ((SEARCH_STATUS == 0)) || return 2
+        GROUP_CACHE[$key]=$(ldif_values dn <<<"$SEARCH_OUTPUT" | sed -n '1p')
     fi
     GROUP_DN=${GROUP_CACHE[$key]}
 }
 
-# group_exists NAME: true when a group with that sAMAccountName exists.
+# group_exists NAME: 0 when a group with that sAMAccountName exists, 1 when it does not, 2 when
+# the search failed.
 group_exists() {
-    lookup_group "$1"
+    lookup_group "$1" || return 2
     [[ -n $GROUP_DN ]]
 }
 
@@ -221,7 +246,10 @@ MISSING_GROUPS=''
 missing_groups_warning() {
     local group member found text=''
     for group in "${groups[@]}"; do
-        lookup_group "$group"
+        if ! lookup_group "$group"; then
+            text+="${text:+ }Could not check the configured group '$group': $(last_error)"
+            continue
+        fi
         [[ -n $GROUP_DN ]] || continue
         found=false
         for member in "$@"; do
@@ -237,26 +265,33 @@ missing_groups_warning() {
     MISSING_GROUPS=$text
 }
 
-# name_taken NAME: true when an account already uses NAME as sAMAccountName or UPN prefix.
+# name_taken NAME: 0 when any object already uses NAME as sAMAccountName or UPN prefix, 1 when
+# the name is free, 2 when the search failed.
 name_taken() {
     local escaped
     escaped=$(ldap_filter_escape "$1")
-    ldap_search "$BASE_DN" sub "(|(sAMAccountName=$escaped)(userPrincipalName=$escaped@$(ldap_filter_escape "$UPN_SUFFIX")))" dn 2>"$ERR_FILE" |
-        ldif_has_entry
+    directory_search "$BASE_DN" sub "(|(sAMAccountName=$escaped)(userPrincipalName=$escaped@$(ldap_filter_escape "$UPN_SUFFIX")))" dn
+    ((SEARCH_STATUS == 0)) || return 2
+    ldif_has_entry <<<"$SEARCH_OUTPUT"
 }
 
 declare -A RESERVED=()
 RESOLVED_NAME=''
 # resolve_account_name GIVEN_ASCII SURNAME_ASCII: sets RESOLVED_NAME to the first free account
-# name and reserves it for the rest of the batch. It sets a variable rather than printing,
-# because a $(...) subshell would lose the reservation.
+# name and reserves it for the rest of the batch. Returns 1 when all 99 are taken and 2 when a
+# search failed. It sets a variable rather than printing, because a $(...) subshell would lose
+# the reservation.
 resolve_account_name() {
-    local attempt candidate
+    local attempt candidate taken
     RESOLVED_NAME=''
     for ((attempt = 1; attempt <= 99; attempt++)); do
         candidate=$(sam_candidate "$1" "$2" "$NAME_FORMAT" "$attempt")
         [[ -z ${RESERVED[$candidate]+set} ]] || continue
-        if ! name_taken "$candidate"; then
+        taken=0
+        name_taken "$candidate" || taken=$?
+        if ((taken == 2)); then
+            return 2
+        elif ((taken == 1)); then
             RESERVED[$candidate]=1
             RESOLVED_NAME=$candidate
             return 0
@@ -317,11 +352,12 @@ while IFS="$ITO_US" read -r -u 3 row employee_id given surname department title 
     mapfile -t groups < <(config_groups "$CONFIG_FILE" "$department")
     group_list=$(IFS=';'; printf '%s' "${groups[*]}")
 
-    existing_entry=$(ldap_search "$BASE_DN" sub "(&(objectClass=user)(employeeID=$(ldap_filter_escape "$employee_id")))" \
-        sAMAccountName memberOf 2>"$ERR_FILE") || {
+    directory_search "$BASE_DN" sub "(&(objectClass=user)(employeeID=$(ldap_filter_escape "$employee_id")))" sAMAccountName memberOf
+    if ((SEARCH_STATUS != 0)); then
         report "$row" "$employee_id" "$display" '' '' "$department" "$ou" "$group_list" Failed "Directory search failed: $(last_error)" '' ''
         continue
-    }
+    fi
+    existing_entry=$SEARCH_OUTPUT
     existing=$(ldif_values sAMAccountName <<<"$existing_entry" | sed -n '1p')
     if [[ -n $existing ]]; then
         # Report, but do not add, configured groups the account lacks: an earlier group add may
@@ -333,25 +369,41 @@ while IFS="$ITO_US" read -r -u 3 row employee_id given surname department title 
         continue
     fi
 
-    if ! ou_exists "$ou"; then
+    lookup_status=0
+    ou_exists "$ou" || lookup_status=$?
+    if ((lookup_status == 2)); then
+        report "$row" "$employee_id" "$display" '' '' "$department" "$ou" "$group_list" Failed \
+            "Directory search failed while checking the OU '$ou': $(last_error)" '' ''
+        continue
+    elif ((lookup_status != 0)); then
         report "$row" "$employee_id" "$display" '' '' "$department" "$ou" "$group_list" Failed \
             "The OU '$ou' from the configuration could not be found." '' ''
         continue
     fi
     missing_group=''
     for group in "${groups[@]}"; do
-        if ! group_exists "$group"; then
+        group_exists "$group" || lookup_status=$?
+        if ((lookup_status != 0)); then
             missing_group=$group
             break
         fi
     done
-    if [[ -n $missing_group ]]; then
+    if ((lookup_status == 2)); then
+        report "$row" "$employee_id" "$display" '' '' "$department" "$ou" "$group_list" Failed \
+            "Directory search failed while checking the group '$missing_group': $(last_error)" '' ''
+        continue
+    elif [[ -n $missing_group ]]; then
         report "$row" "$employee_id" "$display" '' '' "$department" "$ou" "$group_list" Failed \
             "The group '$missing_group' from the configuration does not exist in the directory." '' ''
         continue
     fi
 
-    if ! resolve_account_name "$given_ascii" "$surname_ascii"; then
+    resolve_account_name "$given_ascii" "$surname_ascii" || lookup_status=$?
+    if ((lookup_status == 2)); then
+        report "$row" "$employee_id" "$display" '' '' "$department" "$ou" "$group_list" Failed \
+            "Directory search failed while choosing an account name: $(last_error)" '' ''
+        continue
+    elif ((lookup_status != 0)); then
         report "$row" "$employee_id" "$display" '' '' "$department" "$ou" "$group_list" Failed \
             "No free account name was found for '$display' after 99 attempts." '' ''
         continue
@@ -362,7 +414,13 @@ while IFS="$ITO_US" read -r -u 3 row employee_id given surname department title 
     # The CN must be unique in the OU, across every object class. When the name is taken, add
     # the account name, or use the account name alone if that would pass the 64-character limit.
     cn=$display
-    if ldap_search "$ou" one "(cn=$(ldap_filter_escape "$display"))" dn 2>"$ERR_FILE" | ldif_has_entry; then
+    directory_search "$ou" one "(cn=$(ldap_filter_escape "$display"))" dn
+    if ((SEARCH_STATUS != 0)); then
+        report "$row" "$employee_id" "$display" '' '' "$department" "$ou" "$group_list" Failed \
+            "Directory search failed while checking the name '$display' in '$ou': $(last_error)" '' ''
+        continue
+    fi
+    if ldif_has_entry <<<"$SEARCH_OUTPUT"; then
         cn="$display ($sam)"
         if ((${#cn} > 64)); then
             cn=$sam
@@ -372,10 +430,14 @@ while IFS="$ITO_US" read -r -u 3 row employee_id given surname department title 
     warnings=''
     manager_dn=''
     if [[ -n $manager ]]; then
-        manager_dn=$(ldap_search "$BASE_DN" sub "(&(objectClass=user)(sAMAccountName=$(ldap_filter_escape "$manager")))" distinguishedName 2>"$ERR_FILE" |
-            ldif_values distinguishedName | sed -n '1p') || manager_dn=''
-        if [[ -z $manager_dn ]]; then
-            warnings="Manager '$manager' was not found, so no manager was set."
+        directory_search "$BASE_DN" sub "(&(objectClass=user)(sAMAccountName=$(ldap_filter_escape "$manager")))" distinguishedName
+        if ((SEARCH_STATUS != 0)); then
+            warnings="Manager '$manager' could not be looked up, so no manager was set: $(last_error)"
+        else
+            manager_dn=$(ldif_values distinguishedName <<<"$SEARCH_OUTPUT" | sed -n '1p')
+            if [[ -z $manager_dn ]]; then
+                warnings="Manager '$manager' was not found, so no manager was set."
+            fi
         fi
     fi
 

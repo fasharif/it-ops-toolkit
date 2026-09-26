@@ -3,10 +3,13 @@
 # Fake ldbsearch for the unit tests. It records its arguments and answers from fixtures:
 #   - the rootDSE (base "" and scope base) returns defaultNamingContext $FAKE_BASE_DN;
 #   - other base-scope searches succeed when the base DN is listed in $FAKE_LDB/objects,
-#     and fail with LDAP error 32 otherwise, as a real directory does;
+#     and otherwise fail as Samba's ldbsearch does: exit status 32, with the error on
+#     standard output;
 #   - subtree and one-level searches return $FAKE_LDB/responses/<key>.ldif, where the key is
 #     derived from the scope and filter (see ldb_key in helpers/common.bash), or no entries.
-# Create $FAKE_LDB/fail-ldbsearch to make every search fail.
+# Create $FAKE_LDB/fail-ldbsearch to make every search fail with a connection error. Write a
+# fixed string to $FAKE_LDB/fail-matching to make only the searches whose "base|scope|filter"
+# contains it fail; also create $FAKE_LDB/fail-once to fail only the first of those.
 
 set -euo pipefail
 
@@ -28,6 +31,13 @@ if [[ -e $FAKE_LDB/fail-ldbsearch ]]; then
     echo 'Failed to connect to ldap URL: NT_STATUS_CONNECTION_REFUSED' >&2
     exit 1
 fi
+if [[ -f $FAKE_LDB/fail-matching && "$base|$scope|$filter" == *"$(<"$FAKE_LDB/fail-matching")"* ]]; then
+    if [[ -e $FAKE_LDB/fail-once ]]; then
+        rm -f -- "$FAKE_LDB/fail-matching"
+    fi
+    echo "Failed to connect to ldap URL 'ldap://dc1.corp.itops.test' - LDAP client internal error: NT_STATUS_IO_TIMEOUT" >&2
+    exit 1
+fi
 
 if [[ $scope == base && -z $base ]]; then
     printf '# record 1\ndn: \ndefaultNamingContext: %s\n\n# returned 1 records\n' "$FAKE_BASE_DN"
@@ -39,7 +49,7 @@ if [[ $scope == base ]]; then
         printf '# record 1\ndn: %s\n\n# returned 1 records\n# 1 entries\n# 0 referrals\n' "$base"
         exit 0
     fi
-    echo 'search error - LDAP error 32 LDAP_NO_SUCH_OBJECT' >&2
+    echo 'search error - LDAP error 32 LDAP_NO_SUCH_OBJECT -  <acl_read: Error retrieving instanceType for base.> <>'
     exit 32
 fi
 

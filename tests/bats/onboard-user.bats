@@ -307,6 +307,46 @@ password_in_ldif() {
     assert_equal "$(calls_to ldbadd)" ''
 }
 
+@test 'reports a failed OU search as a directory error, and does not remember it for later rows' {
+    # Only the first OU search fails, as a passing network error would.
+    printf '%s' '|base|(objectClass=organizationalUnit)' >"$FAKE_LDB/fail-matching"
+    touch "$FAKE_LDB/fail-once"
+    feed 'E1,Sara,Ali,Finance,,,' 'E2,Lina,Khan,Finance,,,'
+    run onboard
+    assert_failure 1
+    assert_line --regexp "^1 +- +Failed +Directory search failed while checking the OU 'OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test': Failed to connect to ldap URL .*NT_STATUS_IO_TIMEOUT$"
+    assert_line --regexp '^2 +lina\.khan +Created'
+    refute_output --partial 'could not be found'
+}
+
+@test 'reports a failed group search as a directory error, not as a missing group' {
+    printf '%s' '(sAMAccountName=Finance-Users)' >"$FAKE_LDB/fail-matching"
+    feed 'E1,Sara,Ali,Finance,,,'
+    run onboard
+    assert_failure 1
+    assert_line --regexp "^1 +- +Failed +Directory search failed while checking the group 'Finance-Users': .*NT_STATUS_IO_TIMEOUT$"
+    refute_output --partial 'does not exist'
+    assert_equal "$(calls_to ldbadd)" ''
+}
+
+@test 'reports a failed account name search as a directory error instead of taking the name' {
+    printf '%s' '(|(sAMAccountName=sara.ali)' >"$FAKE_LDB/fail-matching"
+    feed 'E1,Sara,Ali,Finance,,,'
+    run onboard
+    assert_failure 1
+    assert_line --regexp '^1 +- +Failed +Directory search failed while choosing an account name: .*NT_STATUS_IO_TIMEOUT$'
+    assert_equal "$(calls_to ldbadd)" ''
+}
+
+@test 'warns, and still creates the account, when the manager cannot be looked up' {
+    printf '%s' '(sAMAccountName=lina.haddad)' >"$FAKE_LDB/fail-matching"
+    feed 'E1,Sara,Ali,Finance,,lina.haddad,'
+    run onboard
+    assert_success
+    assert_line --regexp '^1 +sara\.ali +Created'
+    assert_line --regexp "Warning: Manager 'lina\.haddad' could not be looked up, so no manager was set: .*NT_STATUS_IO_TIMEOUT$"
+}
+
 @test 'reports a refused account without leaking the password from the tool error' {
     touch "$FAKE_LDB/fail-ldbadd"
     feed 'E1,Sara,Ali,Finance,,,'

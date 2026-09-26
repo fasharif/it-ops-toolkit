@@ -186,6 +186,19 @@ onboard() {
     assert_output 'sara.alhashimi@corp.itops.test'
 }
 
+@test 'a department whose OU does not exist is reported as missing, not as a directory error' {
+    # ldbsearch exits 32 (noSuchObject) for a missing base DN and 1 for a connection failure.
+    jq '.departments.Finance.ou = "OU=No Such OU,DC=corp,DC=itops,DC=test"' config/onboarding.example.json >"$WORK/missing-ou.json"
+    printf 'EmployeeId,GivenName,Surname,Department\nE30001,Hana,Saleh,Finance\n' >"$WORK/missing-ou.csv"
+    run linux/onboard-user.sh --csv "$WORK/missing-ou.csv" --config "$WORK/missing-ou.json" \
+        --deliver-dir "$WORK/deliver" --deliver-cert "$WORK/delivery.pem"
+    assert_failure 1
+    assert_line --regexp "^1 +- +Failed +The OU 'OU=No Such OU,DC=corp,DC=itops,DC=test' from the configuration could not be found\.$"
+    refute_output --partial 'Directory search failed'
+    run attribute hana.saleh sAMAccountName
+    assert_output ''
+}
+
 @test 'offboarding dry run changes nothing' {
     run linux/offboard-user.sh --user sara.ali --ticket inc0012345 --audit-dir "$WORK/audit" --config config/onboarding.example.json --dry-run
     assert_success
