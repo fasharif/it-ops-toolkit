@@ -30,6 +30,11 @@ function New-ItoUser {
         CSV columns: EmployeeId, GivenName, Surname and Department are required. Title, Manager
         (the manager's sAMAccountName) and StartDate (yyyy-MM-dd) are optional.
 
+        GivenNameLatin and SurnameLatin are optional too: a Latin-script spelling of a name
+        written in another script, such as Arabic. The account name and sign-in name are built
+        from them, while the display name, given name and surname keep the original spelling.
+        A name with no Latin letters and no Latin spelling is reported as Invalid.
+
         Rows with problems do not stop the batch: each row gets a result with a Status of
         Created, Exists, Planned (with -WhatIf), Invalid or Failed.
 
@@ -167,7 +172,7 @@ function New-ItoUser {
         $targetCache = @{}
         $results = New-Object -TypeName System.Collections.Generic.List[object]
         $rowNumber = 0
-        $fields = @('EmployeeId', 'GivenName', 'Surname', 'Department', 'Title', 'Manager', 'StartDate')
+        $fields = @('EmployeeId', 'GivenName', 'Surname', 'Department', 'Title', 'Manager', 'StartDate', 'GivenNameLatin', 'SurnameLatin')
         $today = (Get-Date).ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
     }
 
@@ -242,9 +247,8 @@ function New-ItoUser {
                     throw $targetProblem
                 }
 
-                $givenAscii = ConvertTo-ItoAsciiName -Name $row.GivenName
-                $surnameAscii = ConvertTo-ItoAsciiName -Name $row.Surname
-                $samAccountName = Resolve-ItoSamAccountName -GivenName $givenAscii -Surname $surnameAscii `
+                $accountNameParts = Get-ItoAccountNamePart -Row $row
+                $samAccountName = Resolve-ItoSamAccountName -GivenName $accountNameParts.GivenName -Surname $accountNameParts.Surname `
                     -Format $config.SamAccountNameFormat -UpnSuffix $config.UpnSuffix -Reserved $reservedNames -AdParameters $adParameters
                 $userPrincipalName = '{0}@{1}' -f $samAccountName, $config.UpnSuffix
                 $displayName = '{0} {1}' -f $row.GivenName, $row.Surname
@@ -291,7 +295,8 @@ function New-ItoUser {
                     continue
                 }
 
-                $nameParts = @($displayName -split '[,.\-_ #\t]' | Where-Object { $_.Length -ge 3 })
+                $spellings = '{0} {1} {2}' -f $displayName, $row.GivenNameLatin, $row.SurnameLatin
+                $nameParts = @($spellings -split '[,.\-_ #\t]' | Where-Object { $_.Length -ge 3 } | Select-Object -Unique)
                 $password = New-ItoRandomPassword -Length $PasswordLength -ExcludeSubstring (@($samAccountName) + $nameParts)
 
                 $newUser = @{

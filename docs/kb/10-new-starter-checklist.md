@@ -17,6 +17,10 @@ attach the completed list to the ticket.
       chat alone.
 - [ ] The HR feed row is complete: employee ID, given name, surname, department, and ideally
       title, manager and start date.
+- [ ] A name written only in Arabic (or another non-Latin script) has the Latin spelling the
+      person uses in `GivenNameLatin` and `SurnameLatin`, for example from their passport or
+      visa. The account name is built from it; the display name stays in Arabic. Ask HR rather
+      than guessing: Mohammed, Muhammad and Mohamed are all common spellings.
 - [ ] The department exists in the onboarding configuration (`config/onboarding.json`).
 
 ## Fix: the checklist

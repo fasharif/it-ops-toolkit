@@ -4,7 +4,7 @@
 Bash has no reliable CSV parser, and samba-tool already needs Python 3, so this helper does
 the parsing, the field checks and the ASCII name normalisation. The rules match the
 PowerShell module (Test-ItoOnboardingRecord and ConvertTo-ItoAsciiName), and both are tested
-against tests/fixtures/account-names.csv.
+against tests/fixtures/account-names.csv and tests/fixtures/feed-rows.csv.
 
 Fields are separated by the ASCII unit separator (0x1F). A tab would not work: bash's read
 treats runs of tabs as one separator, so empty fields would disappear.
@@ -13,6 +13,10 @@ Output columns, in input order:
 
     row, EmployeeId, GivenName, Surname, Department, Title, Manager, StartDate,
     given_ascii, surname_ascii, problems
+
+The optional GivenNameLatin and SurnameLatin columns hold a Latin-script spelling of a name
+written in another script, such as Arabic. When present, given_ascii and surname_ascii (and so
+the account name) come from them; GivenName and Surname keep the original spelling.
 
 `problems` is empty for a valid row, otherwise the problems joined with a space. Department
 names are checked by onboard-user.sh, which reads the JSON configuration.
@@ -33,6 +37,8 @@ from collections.abc import Iterable, Sequence
 
 REQUIRED_COLUMNS = ("EmployeeId", "GivenName", "Surname", "Department")
 OPTIONAL_COLUMNS = ("Title", "Manager", "StartDate")
+LATIN_COLUMNS = ("GivenNameLatin", "SurnameLatin")
+ALL_COLUMNS = REQUIRED_COLUMNS + OPTIONAL_COLUMNS + LATIN_COLUMNS
 EMPLOYEE_ID = re.compile(r"^[A-Za-z0-9-]{1,16}$")
 ACCOUNT_NAME = re.compile(r"^[A-Za-z0-9._-]{1,20}$")
 # Exactly yyyy-MM-dd in ASCII digits, as .NET's TryParseExact in the PowerShell module requires.
@@ -116,17 +122,36 @@ def employee_id_problems(employee_id: str) -> list[str]:
     return []
 
 
-def name_problems(field: str, value: str) -> list[str]:
+def latin_problems(latin_field: str, latin: str) -> list[str]:
+    """Problems with an optional Latin-script spelling (GivenNameLatin or SurnameLatin)."""
+    if not is_person_name(latin):
+        return [f"{latin_field} '{latin}' contains characters that are not allowed in a name."]
+    if not ascii_name(latin):
+        return [f"{latin_field} '{latin}' has no Latin letters that can be used in an account name."]
+    return []
+
+
+def name_problems(field: str, row: dict[str, str]) -> list[str]:
+    """Problems with GivenName or Surname, and with its optional Latin-script spelling."""
+    value = row[field]
+    latin_field = field + "Latin"
     if not value:
         return [f"{field} is required."]
     if not is_person_name(value):
         return [f"{field} '{value}' contains characters that are not allowed in a name."]
+    if row[latin_field]:
+        return latin_problems(latin_field, row[latin_field])
     if not ascii_name(value):
         return [
             f"{field} '{value}' has no letters that can be used in an account name. "
-            "Add a Latin-script spelling to the HR record."
+            f"Add a Latin-script spelling in the {latin_field} column."
         ]
     return []
+
+
+def account_name_part(field: str, row: dict[str, str]) -> str:
+    """The ASCII name the account name is built from: the Latin spelling when there is one."""
+    return ascii_name(row[field + "Latin"] or row[field])
 
 
 def other_field_problems(row: dict[str, str]) -> list[str]:
@@ -157,8 +182,8 @@ def row_problems(row: dict[str, str], seen_ids: set[str]) -> list[str]:
     PowerShell module, so the first valid occurrence is kept.
     """
     problems = employee_id_problems(row["EmployeeId"])
-    given_problems = name_problems("GivenName", row["GivenName"])
-    surname_problems = name_problems("Surname", row["Surname"])
+    given_problems = name_problems("GivenName", row)
+    surname_problems = name_problems("Surname", row)
     problems += given_problems + surname_problems
     full_name = f"{row['GivenName']} {row['Surname']}"
     if not given_problems and not surname_problems and len(full_name) > MAX_CN_LENGTH:
@@ -184,25 +209,18 @@ def header_map(fieldnames: Sequence[str]) -> dict[str, str]:
     by_lower: dict[str, str] = {}
     for name in fieldnames:
         by_lower.setdefault(name.lower(), name)
-    return {
-        column: by_lower[column.lower()]
-        for column in REQUIRED_COLUMNS + OPTIONAL_COLUMNS
-        if column.lower() in by_lower
-    }
+    return {column: by_lower[column.lower()] for column in ALL_COLUMNS if column.lower() in by_lower}
 
 
 def convert(rows: Iterable[dict[str, str | None]], headers: dict[str, str]) -> Iterable[str]:
     seen_ids: set[str] = set()
     for number, raw in enumerate(rows, start=1):
-        row = {
-            column: (raw.get(headers.get(column, column)) or "").strip()
-            for column in REQUIRED_COLUMNS + OPTIONAL_COLUMNS
-        }
+        row = {column: (raw.get(headers.get(column, column)) or "").strip() for column in ALL_COLUMNS}
         problems = row_problems(row, seen_ids)
         fields = [str(number)]
         fields += [row[column] for column in REQUIRED_COLUMNS]
         fields += [row[column] for column in OPTIONAL_COLUMNS]
-        fields += [ascii_name(row["GivenName"]), ascii_name(row["Surname"])]
+        fields += [account_name_part("GivenName", row), account_name_part("Surname", row)]
         fields.append(" ".join(problems))
         # Control characters would break the output format; they are never valid in these fields.
         yield SEPARATOR.join(re.sub(r"[\x00-\x1f]", " ", field) for field in fields)
@@ -219,7 +237,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             headers = header_map(reader.fieldnames or [])
             missing = [column for column in REQUIRED_COLUMNS if column not in headers]
             if missing:
-                expected = ", ".join(REQUIRED_COLUMNS + OPTIONAL_COLUMNS)
+                expected = ", ".join(ALL_COLUMNS)
                 print(
                     f"The HR feed '{args.csv_file}' is missing required columns: "
                     f"{', '.join(missing)}. Expected columns: {expected}.",

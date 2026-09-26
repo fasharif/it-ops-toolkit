@@ -145,23 +145,26 @@ Describe 'HR feed row rules' {
         $script:rowConfigPath = New-TestConfigFile -Directory $TestDrive
     }
 
-    It 'reports exactly the problems in the shared fixture for every row (hrfeed.py is tested against the same file)' {
-        $script:rowCases.Count | Should -BeGreaterThan 10
+    It 'reports exactly the problems and account name parts in the shared fixture for every row (hrfeed.py is tested against the same file)' {
+        $script:rowCases.Count | Should -BeGreaterThan 15
         foreach ($case in $script:rowCases) {
-            $problems = InModuleScope ItOpsToolkit -Parameters @{ Case = $case; ConfigPath = $script:rowConfigPath } {
+            $actual = InModuleScope ItOpsToolkit -Parameters @{ Case = $case; ConfigPath = $script:rowConfigPath } {
                 $config = Read-ItoOnboardingConfig -Path $ConfigPath
                 $row = @{
-                    EmployeeId = $Case.EmployeeId
-                    GivenName  = $Case.GivenName
-                    Surname    = $Case.Surname
-                    Department = 'Finance'
-                    Title      = $Case.Title
-                    Manager    = $Case.Manager
-                    StartDate  = $Case.StartDate
+                    EmployeeId     = $Case.EmployeeId
+                    GivenName      = $Case.GivenName
+                    Surname        = $Case.Surname
+                    GivenNameLatin = $Case.GivenNameLatin
+                    SurnameLatin   = $Case.SurnameLatin
+                    Department     = 'Finance'
+                    Title          = $Case.Title
+                    Manager        = $Case.Manager
+                    StartDate      = $Case.StartDate
                 }
-                @(Test-ItoOnboardingRecord -Row $row -Config $config) -join ' '
+                $parts = Get-ItoAccountNamePart -Row $row
+                '{0}|{1}|{2}' -f $parts.GivenName, $parts.Surname, (@(Test-ItoOnboardingRecord -Row $row -Config $config) -join ' ')
             }
-            $problems | Should -BeExactly $case.Problem -Because $case.Case
+            $actual | Should -BeExactly ('{0}|{1}|{2}' -f $case.AccountGiven, $case.AccountSurname, $case.Problem) -Because $case.Case
         }
     }
 }

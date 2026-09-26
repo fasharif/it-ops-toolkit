@@ -259,6 +259,18 @@ password_in_ldif() {
     assert_line 'sAMAccountName: jose.garcialopez'
 }
 
+@test 'builds the account name from GivenNameLatin and SurnameLatin and keeps the Arabic names' {
+    printf 'EmployeeId,GivenName,Surname,Department,GivenNameLatin,SurnameLatin\nE1,سارة,الهاشمي,Finance,Sara,Al Hashimi\n' >"$FEED"
+    run onboard
+    assert_success
+    assert_line --regexp '^1 +sara\.alhashimi +Created +Created sara\.alhashimi@corp\.itops\.test in OU=Finance'
+    run cat "$FAKE_LDB/ldbadd.ldif"
+    assert_line 'sAMAccountName: sara.alhashimi'
+    assert_line "givenName:: $(printf '%s' 'سارة' | base64 -w0)"
+    assert_line "sn:: $(printf '%s' 'الهاشمي' | base64 -w0)"
+    assert_line "displayName:: $(printf '%s' 'سارة الهاشمي' | base64 -w0)"
+}
+
 @test 'sets the manager when found and warns when not' {
     printf 'dn: CN=Lina Haddad,OU=Sales,OU=Staff,DC=corp,DC=itops,DC=test\ndistinguishedName: CN=Lina Haddad,OU=Sales,OU=Staff,DC=corp,DC=itops,DC=test\n' |
         ldb_respond sub '(&(objectClass=user)(sAMAccountName=lina.haddad))'

@@ -38,6 +38,32 @@ function Get-ItoRecordValue {
     ([string]$value).Trim()
 }
 
+function Get-ItoAccountNamePart {
+    <#
+    .SYNOPSIS
+        Returns the lower-case ASCII given name and surname that the account name is built from.
+    .DESCRIPTION
+        Uses GivenNameLatin and SurnameLatin when the row has them, otherwise GivenName and
+        Surname. linux/lib/hrfeed.py makes the same choice.
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory)]
+        [hashtable] $Row
+    )
+
+    $parts = @{}
+    foreach ($field in @('GivenName', 'Surname')) {
+        $source = [string]$Row[$field + 'Latin']
+        if ([string]::IsNullOrEmpty($source)) {
+            $source = [string]$Row[$field]
+        }
+        $parts[$field] = ConvertTo-ItoAsciiName -Name $source
+    }
+    $parts
+}
+
 function Test-ItoOnboardingRecord {
     <#
     .SYNOPSIS
@@ -65,6 +91,10 @@ function Test-ItoOnboardingRecord {
     $namesValid = $true
     foreach ($field in @('GivenName', 'Surname')) {
         $value = $Row[$field]
+        # An optional Latin-script spelling (GivenNameLatin, SurnameLatin) is used for the account
+        # name when the name itself is in another script, such as Arabic.
+        $latinField = $field + 'Latin'
+        $latin = [string]$Row[$latinField]
         if ([string]::IsNullOrEmpty($value)) {
             $problems.Add("$field is required.")
             $namesValid = $false
@@ -73,8 +103,18 @@ function Test-ItoOnboardingRecord {
             $problems.Add("$field '$value' contains characters that are not allowed in a name.")
             $namesValid = $false
         }
+        elseif (-not [string]::IsNullOrEmpty($latin)) {
+            if (-not (Test-ItoPersonName -Name $latin)) {
+                $problems.Add("$latinField '$latin' contains characters that are not allowed in a name.")
+                $namesValid = $false
+            }
+            elseif ((ConvertTo-ItoAsciiName -Name $latin).Length -eq 0) {
+                $problems.Add("$latinField '$latin' has no Latin letters that can be used in an account name.")
+                $namesValid = $false
+            }
+        }
         elseif ((ConvertTo-ItoAsciiName -Name $value).Length -eq 0) {
-            $problems.Add("$field '$value' has no letters that can be used in an account name. Add a Latin-script spelling to the HR record.")
+            $problems.Add("$field '$value' has no letters that can be used in an account name. Add a Latin-script spelling in the $latinField column.")
             $namesValid = $false
         }
     }

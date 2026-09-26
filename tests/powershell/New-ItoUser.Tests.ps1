@@ -202,6 +202,20 @@ Describe 'New-ItoUser' {
             $script:created.SamAccountName | Should -Be @('aisha.almansoori')
         }
 
+        It 'builds the account name from GivenNameLatin and SurnameLatin and keeps the original names everywhere else' {
+            $given = -join ([char[]](0x0633, 0x0627, 0x0631, 0x0629))
+            $surname = -join ([char[]](0x0627, 0x0644, 0x0647, 0x0627, 0x0634, 0x0645, 0x064A))
+            $feed = New-Feed -Header 'EmployeeId,GivenName,Surname,Department,GivenNameLatin,SurnameLatin' -Rows @(
+                ('E1,{0},{1},Finance,Sara,Al Hashimi' -f $given, $surname)
+            )
+            $result = New-ItoUser -Path $feed -ConfigPath $script:configPath -Confirm:$false -WarningAction SilentlyContinue
+            $result.Status | Should -Be 'Created'
+            $result.SamAccountName | Should -Be 'sara.alhashimi'
+            $result.UserPrincipalName | Should -Be 'sara.alhashimi@corp.itops.test'
+            $script:created[0].DisplayName | Should -BeExactly ('{0} {1}' -f $given, $surname)
+            $script:created[0].Name | Should -BeExactly ('{0} {1}' -f $given, $surname)
+        }
+
         It 'rejects a duplicate employee ID within one feed' {
             $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,', 'E1,Sara,Ali,Finance,,,')
             $results = @(New-ItoUser -Path $feed -ConfigPath $script:configPath -Confirm:$false -WarningAction SilentlyContinue)

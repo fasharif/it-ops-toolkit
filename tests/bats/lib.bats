@@ -249,7 +249,7 @@ EOF
     assert_line --index 0 --partial "EmployeeId 'E 1' must be 1-16 letters, digits or hyphens."
     assert_line --index 1 --partial 'GivenName is required.'
     assert_line --index 2 --partial "GivenName 'Smith, John' contains characters that are not allowed in a name."
-    assert_line --index 3 --partial 'has no letters that can be used in an account name. Add a Latin-script spelling to the HR record.'
+    assert_line --index 3 --partial 'has no letters that can be used in an account name. Add a Latin-script spelling in the GivenNameLatin column.'
     assert_line --index 4 --partial 'Department is required.'
     assert_line --index 5 --partial "Manager 'Lina Haddad' must be the manager's account name (sAMAccountName)."
     assert_line --index 6 --partial "StartDate '05/10/2026' must use the format yyyy-MM-dd."
@@ -266,26 +266,28 @@ with open(sys.argv[1], encoding='utf-8', newline='') as source, \
         open(sys.argv[2], 'w', encoding='utf-8', newline='') as feed, \
         open(sys.argv[3], 'w', encoding='utf-8') as expected:
     writer = csv.writer(feed)
-    writer.writerow(['EmployeeId', 'GivenName', 'Surname', 'Department', 'Title', 'Manager', 'StartDate'])
+    columns = ['EmployeeId', 'GivenName', 'Surname', 'Title', 'Manager', 'StartDate', 'GivenNameLatin', 'SurnameLatin']
+    writer.writerow(columns + ['Department'])
     for case in csv.DictReader(source):
-        writer.writerow([case['EmployeeId'], case['GivenName'], case['Surname'], 'Finance', case['Title'], case['Manager'], case['StartDate']])
-        print(case['Case'] + '\t' + case['Problem'], file=expected)
+        writer.writerow([case[column] for column in columns] + ['Finance'])
+        print('\x1f'.join([case['Case'], case['AccountGiven'], case['AccountSurname'], case['Problem']]), file=expected)
 PY
     run hrfeed "$BATS_TEST_TMPDIR/feed.csv"
     assert_success
-    local -a cases
+    local -a cases fields
     mapfile -t cases <"$BATS_TEST_TMPDIR/expected.txt"
     assert_equal "${#lines[@]}" "${#cases[@]}"
-    local i name problem
+    local i name given surname problem actual
     for i in "${!cases[@]}"; do
-        name=${cases[i]%%$'\t'*}
-        problem=${cases[i]#*$'\t'}
-        # The problems are the last field of each output line.
-        if [[ ${lines[i]##*$'\x1f'} != "$problem" ]]; then
-            fail "Case '$name': expected problems '$problem', got '${lines[i]##*$'\x1f'}'"
+        IFS=$'\x1f' read -r name given surname problem <<<"${cases[i]}"
+        # given_ascii, surname_ascii and problems are the last three fields of each output line.
+        IFS=$'\x1f' read -r -a fields <<<"${lines[i]}x"
+        actual="${fields[8]}|${fields[9]}|${fields[10]%x}"
+        if [[ $actual != "$given|$surname|$problem" ]]; then
+            fail "Case '$name': expected '$given|$surname|$problem', got '$actual'"
         fi
     done
-    ((${#cases[@]} > 10))
+    ((${#cases[@]} > 15))
 }
 
 @test 'hrfeed reads column headers without regard to case, as New-ItoUser does' {

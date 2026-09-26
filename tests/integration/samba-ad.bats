@@ -164,14 +164,26 @@ onboard() {
     assert_line --regexp '^3 +priya\.nair +Created'
     assert_line --regexp "Warning: Manager 'no\.such\.manager' was not found"
     assert_line --regexp "^4 +- +Invalid +EmployeeId 'E20003' appears more than once"
-    assert_line --regexp '^5 +- +Invalid +GivenName .* has no letters that can be used in an account name'
+    assert_line --regexp '^5 +- +Invalid +GivenName .* has no letters that can be used in an account name\. Add a Latin-script spelling in the GivenNameLatin column\.$'
     assert_line --regexp '^6 +christopher\.montgome +Created'
-    assert_output --partial 'Onboarding summary: 3 created, 3 invalid.'
+    assert_line --regexp '^7 +sara\.alhashimi +Created'
+    assert_output --partial 'Onboarding summary: 4 created, 3 invalid.'
 
     run attribute omar.haddad manager
     assert_output 'CN=lina.haddad,OU=Sales,OU=Staff,DC=corp,DC=itops,DC=test'
     run attribute omar.haddad department
     assert_output 'Sales'
+}
+
+@test 'an Arabic name gets its account name from the Latin spelling and keeps the Arabic display name' {
+    run attribute sara.alhashimi displayName
+    assert_output 'سارة الهاشمي'
+    run attribute sara.alhashimi givenName
+    assert_output 'سارة'
+    run attribute sara.alhashimi distinguishedName
+    assert_output 'CN=سارة الهاشمي,OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test'
+    run attribute sara.alhashimi userPrincipalName
+    assert_output 'sara.alhashimi@corp.itops.test'
 }
 
 @test 'offboarding dry run changes nothing' {

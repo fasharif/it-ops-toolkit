@@ -31,7 +31,9 @@ The password is never printed, logged or passed on a command line.
 
 Options:
   --csv FILE            HR feed: UTF-8 CSV with EmployeeId, GivenName, Surname, Department
-                        and optional Title, Manager (sAMAccountName), StartDate (yyyy-MM-dd).
+                        and optional Title, Manager (sAMAccountName), StartDate (yyyy-MM-dd),
+                        GivenNameLatin and SurnameLatin (a Latin-script spelling of a name in
+                        another script, such as Arabic, used for the account name only).
   --config FILE         JSON configuration, see config/onboarding.example.json.
   --url URL             Domain controller, e.g. ldap://dc1.corp.example.com
                         (default: $ITO_LDAP_URL).
@@ -390,7 +392,7 @@ while IFS="$ITO_US" read -r -u 3 row employee_id given surname department title 
 
     name_parts=()
     read -r -a name_parts <<<"${display//[-,._#]/ }"
-    if ! password=$(generate_password "$PASSWORD_LENGTH" "$sam" "${name_parts[@]}"); then
+    if ! password=$(generate_password "$PASSWORD_LENGTH" "$sam" "$given_ascii" "$surname_ascii" "${name_parts[@]}"); then
         report "$row" "$employee_id" "$display" "$sam" "$upn" "$department" "$ou" "$group_list" Failed \
             'Could not generate a password without the account or display name.' "$warnings" ''
         continue

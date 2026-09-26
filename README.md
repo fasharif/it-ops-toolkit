@@ -73,7 +73,8 @@ parameter validation and `-WhatIf`/`-Confirm` on everything that changes state):
 
 - `New-ItoUser` creates Active Directory accounts from an HR feed CSV: department-to-OU and group
   mapping from JSON, unique `sAMAccountName` generation (first.last or flast, at most 20
-  characters, numbered on collision, unique across users, groups and computers), a strong random
+  characters, numbered on collision, unique across users, groups and computers, built from an
+  optional Latin spelling for names in Arabic or other scripts), a strong random
   initial password delivered only as a CMS-encrypted file (to a certificate file, object or
   thumbprint) or a `SecureString`, "must change password at next logon", and a CSV summary. The
   password never passes through a command parameter, so PowerShell module logging cannot record
@@ -220,6 +221,10 @@ reject anything else with the same message.
 
 **HR feed columns:** `EmployeeId`, `GivenName`, `Surname`, `Department` (required), `Title`,
 `Manager` (the manager's sAMAccountName) and `StartDate` (yyyy-MM-dd) (optional).
+`GivenNameLatin` and `SurnameLatin` (optional) give a Latin-script spelling for a name written in
+another script, such as Arabic: the account and sign-in names are built from them, and the
+display name keeps the original script. A row for سارة الهاشمي with the Latin spelling Sara Al
+Hashimi becomes `sara.alhashimi`, displayed as سارة الهاشمي.
 
 **Password delivery certificate.** `New-ItoUser` needs a certificate with the Document Encryption
 enhanced key usage. On Windows:

@@ -240,3 +240,22 @@ the one domain controller named by `--url`.
 **Consequences.** A run fails at the start, before any change, when no domain controller can be
 found. A rerun of a feed reports configured groups that an existing account lacks, rather than
 adding them, because the person may have changed department since.
+
+## 15. Names in Arabic and other scripts need a Latin spelling from HR
+
+**Context.** Account names and sign-in names must be ASCII, but HR systems in the UAE and the
+wider region often hold names in Arabic. Transliterating Arabic automatically gives spellings
+that people do not recognise as their own: the same name is written Mohammed, Muhammad or
+Mohamed, and the choice belongs to the person (it is usually the spelling in their passport).
+
+**Decision.** Both toolkits accept two optional feed columns, `GivenNameLatin` and
+`SurnameLatin`. When present, the account name is built from them; `givenName`, `sn`,
+`displayName` and the CN keep the original script. There is no automatic transliteration of
+non-Latin scripts. A row whose name has no Latin letters and no Latin spelling is `Invalid`, and
+the message names the column to fill in. Latin names with accents (José, Łukasz) are still
+reduced to ASCII automatically, because that mapping is not in doubt.
+
+**Consequences.** HR has to supply the Latin spelling, which the new starter checklist (KB 10)
+asks for. The shared fixture `tests/fixtures/feed-rows.csv` checks both toolkits with Arabic
+names, and the Samba integration test creates an account with an Arabic display name and a
+Latin account name.

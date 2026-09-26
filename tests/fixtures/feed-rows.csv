@@ -1,17 +1,22 @@
-Case,EmployeeId,GivenName,Surname,Title,Manager,StartDate,Problem
-a valid row with every column,E1,Sara,Ali,Accounts Assistant,lina.haddad,2026-10-05,
-a valid row with only the required columns,E2,Omar,Haddad,,,,
-names with accents and apostrophes,E3,José,O'Brien-García,,,,
-a start date with a one-digit month and day,E4,Sara,Ali,,,2026-1-5,StartDate '2026-1-5' must use the format yyyy-MM-dd.
-a start date that does not exist,E5,Sara,Ali,,,2026-02-30,StartDate '2026-02-30' must use the format yyyy-MM-dd.
-a start date in day/month/year order,E6,Sara,Ali,,,05/10/2026,StartDate '05/10/2026' must use the format yyyy-MM-dd.
-a start date with a time,E7,Sara,Ali,,,2026-10-05T09:00,StartDate '2026-10-05T09:00' must use the format yyyy-MM-dd.
-a start date in Arabic-Indic digits,E8,Sara,Ali,,,٢٠٢٦-١٠-٠٥,StartDate '٢٠٢٦-١٠-٠٥' must use the format yyyy-MM-dd.
-an employee ID with a space,E 9,Sara,Ali,,,,"EmployeeId 'E 9' must be 1-16 letters, digits or hyphens."
-a missing given name,E10,,Ali,,,,GivenName is required.
-a given name with a comma,E11,"Smith, John",Doe,,,,"GivenName 'Smith, John' contains characters that are not allowed in a name."
-a given name in Arabic script only,E12,سارة,Ali,,,,GivenName 'سارة' has no letters that can be used in an account name. Add a Latin-script spelling to the HR record.
-a manager given as a display name,E13,Sara,Ali,,Lina Haddad,,Manager 'Lina Haddad' must be the manager's account name (sAMAccountName).
-a title longer than 64 characters,E14,Sara,Ali,Senior Analyst for Financial Planning and Performance Management EMEA,,,Title must be at most 64 characters with no control characters.
-a full name longer than 64 characters,E15,Anastasia-Konstantina,Montgomery-Smithson-Fitzwilliam-Worthington,,,,"The full name 'Anastasia-Konstantina Montgomery-Smithson-Fitzwilliam-Worthington' is 65 characters long. Active Directory limits the common name (CN) to 64 characters, so shorten the name in the HR record."
-several problems in one row,E-16-TOO-LONG-ID-X,Sara,Ali,,,2026-13-01,"EmployeeId 'E-16-TOO-LONG-ID-X' must be 1-16 letters, digits or hyphens. StartDate '2026-13-01' must use the format yyyy-MM-dd."
+Case,EmployeeId,GivenName,Surname,GivenNameLatin,SurnameLatin,Title,Manager,StartDate,AccountGiven,AccountSurname,Problem
+a valid row with every column,E1,Sara,Ali,,,Accounts Assistant,lina.haddad,2026-10-05,sara,ali,
+a valid row with only the required columns,E2,Omar,Haddad,,,,,,omar,haddad,
+names with accents and apostrophes,E3,José,O'Brien-García,,,,,,jose,obriengarcia,
+a start date with a one-digit month and day,E4,Sara,Ali,,,,,2026-1-5,sara,ali,StartDate '2026-1-5' must use the format yyyy-MM-dd.
+a start date that does not exist,E5,Sara,Ali,,,,,2026-02-30,sara,ali,StartDate '2026-02-30' must use the format yyyy-MM-dd.
+a start date in day/month/year order,E6,Sara,Ali,,,,,05/10/2026,sara,ali,StartDate '05/10/2026' must use the format yyyy-MM-dd.
+a start date with a time,E7,Sara,Ali,,,,,2026-10-05T09:00,sara,ali,StartDate '2026-10-05T09:00' must use the format yyyy-MM-dd.
+a start date in Arabic-Indic digits,E8,Sara,Ali,,,,,٢٠٢٦-١٠-٠٥,sara,ali,StartDate '٢٠٢٦-١٠-٠٥' must use the format yyyy-MM-dd.
+an employee ID with a space,E 9,Sara,Ali,,,,,,sara,ali,"EmployeeId 'E 9' must be 1-16 letters, digits or hyphens."
+a missing given name,E10,,Ali,,,,,,,ali,GivenName is required.
+a given name with a comma,E11,"Smith, John",Doe,,,,,,smithjohn,doe,"GivenName 'Smith, John' contains characters that are not allowed in a name."
+a given name in Arabic script with no Latin spelling,E12,سارة,Ali,,,,,,,ali,GivenName 'سارة' has no letters that can be used in an account name. Add a Latin-script spelling in the GivenNameLatin column.
+a manager given as a display name,E13,Sara,Ali,,,,Lina Haddad,,sara,ali,Manager 'Lina Haddad' must be the manager's account name (sAMAccountName).
+a title longer than 64 characters,E14,Sara,Ali,,,Senior Analyst for Financial Planning and Performance Management EMEA,,,sara,ali,Title must be at most 64 characters with no control characters.
+a full name longer than 64 characters,E15,Anastasia-Konstantina,Montgomery-Smithson-Fitzwilliam-Worthington,,,,,,anastasiakonstantina,montgomerysmithsonfitzwilliamworthington,"The full name 'Anastasia-Konstantina Montgomery-Smithson-Fitzwilliam-Worthington' is 65 characters long. Active Directory limits the common name (CN) to 64 characters, so shorten the name in the HR record."
+several problems in one row,E-16-TOO-LONG-ID-X,Sara,Ali,,,,,2026-13-01,sara,ali,"EmployeeId 'E-16-TOO-LONG-ID-X' must be 1-16 letters, digits or hyphens. StartDate '2026-13-01' must use the format yyyy-MM-dd."
+an Arabic name with Latin spellings,E17,سارة,الهاشمي,Sara,Al Hashimi,,,,sara,alhashimi,
+a Latin spelling for the surname only,E18,Omar,الحداد,,Al-Haddad,,,,omar,alhaddad,
+a Latin spelling for a name that is already Latin,E19,José,García,Jose,Garcia,,,,jose,garcia,
+a Latin spelling that is not in Latin script,E20,سارة,Ali,سارة,,,,,,ali,GivenNameLatin 'سارة' has no Latin letters that can be used in an account name.
+a Latin spelling with a digit,E21,سارة,Ali,Sara2,,,,,sara2,ali,GivenNameLatin 'Sara2' contains characters that are not allowed in a name.
