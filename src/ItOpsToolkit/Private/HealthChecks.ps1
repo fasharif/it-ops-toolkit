@@ -21,6 +21,10 @@ function Get-ItoDefaultHealthThreshold {
         UpdateAgeDaysCritical     = 60
         BitLockerOffStatus        = 'Warning'
         IgnoredServices           = @('clr_optimization_*', 'edgeupdate*', 'gupdate*', 'GoogleUpdater*', 'MapsBroker', 'RemoteRegistry', 'sppsvc', 'tiledatamodelsvc', 'WslInstaller')
+        # Core services behind common tickets (DHCP, DNS client, event log, file shares, firewall,
+        # printing, WMI). When set to start automatically, they count whenever they are stopped,
+        # even after a clean stop (exit code 0).
+        EssentialServices         = @('Dhcp', 'Dnscache', 'EventLog', 'LanmanWorkstation', 'mpssvc', 'Spooler', 'Winmgmt')
     }
 }
 
@@ -71,6 +75,9 @@ function Read-ItoHealthThreshold {
             }
             'IgnoredServices' {
                 $thresholds['IgnoredServices'] = [string[]]@($value)
+            }
+            'EssentialServices' {
+                $thresholds['EssentialServices'] = [string[]]@($value)
             }
             default {
                 if ($value -isnot [int] -and $value -isnot [long] -and $value -isnot [double] -and $value -isnot [decimal]) {
@@ -285,11 +292,14 @@ function Get-ItoServiceCheck {
     .SYNOPSIS
         Grades automatic services that are not running.
     .DESCRIPTION
-        Only services that stopped with an error, or never started (exit code other than 0),
-        count towards the Warning and Critical levels. Excluded: trigger-start services, the
-        ignored list, and delayed-start services in the first minutes after boot, before Windows
-        has started them. Services that stopped cleanly (exit code 0) usually stop by design once
-        their work is done; they are listed in the detail for information, but do not count.
+        Two kinds of stopped automatic service count towards the Warning and Critical levels:
+        services that stopped with an error or never started (exit code other than 0), and
+        services on the essential list (Spooler, Dnscache and so on), whatever their exit code,
+        because a spooler stopped by hand is still a printing ticket. Excluded: the ignored list
+        (which wins over the essential list), trigger-start services that are not essential, and
+        delayed-start services in the first minutes after boot, before Windows has started them.
+        Other services that stopped cleanly (exit code 0) usually stop by design once their work
+        is done; they are listed in the detail for information, but do not count.
     #>
     [CmdletBinding()]
     param(
@@ -307,6 +317,7 @@ function Get-ItoServiceCheck {
     )
 
     $ignored = @($Thresholds.IgnoredServices)
+    $essential = @($Thresholds.EssentialServices)
     $graceMinutes = [double]$Thresholds.DelayedStartGraceMinutes
     $minutesSinceBoot = $null
     if ($null -ne $LastBootUpTime) {
@@ -316,19 +327,27 @@ function Get-ItoServiceCheck {
 
     $listed = @($Services | Where-Object {
             $service = $_
-            -not $service.TriggerStart -and -not ($ignored | Where-Object { $service.Name -like $_ })
+            $isEssential = @($essential | Where-Object { $service.Name -like $_ }).Count -gt 0
+            ($isEssential -or -not $service.TriggerStart) -and -not ($ignored | Where-Object { $service.Name -like $_ })
         } | Sort-Object -Property Name)
     $failed = New-Object -TypeName System.Collections.Generic.List[object]
+    $essentialStopped = New-Object -TypeName System.Collections.Generic.List[object]
     $cleanStops = New-Object -TypeName System.Collections.Generic.List[object]
     $pending = New-Object -TypeName System.Collections.Generic.List[object]
     $data = foreach ($service in $listed) {
-        if ([int]$service.ExitCode -eq 0) {
-            $cleanStops.Add($service)
-            $reason = 'StoppedCleanly'
-        }
-        elseif ($inGrace -and $service.DelayedAutoStart) {
+        $isEssential = @($essential | Where-Object { $service.Name -like $_ }).Count -gt 0
+        if ($inGrace -and $service.DelayedAutoStart -and ($isEssential -or [int]$service.ExitCode -ne 0)) {
             $pending.Add($service)
             $reason = 'DelayedStartPending'
+        }
+        elseif ($isEssential) {
+            $failed.Add($service)
+            $essentialStopped.Add($service)
+            $reason = 'EssentialStopped'
+        }
+        elseif ([int]$service.ExitCode -eq 0) {
+            $cleanStops.Add($service)
+            $reason = 'StoppedCleanly'
         }
         else {
             $failed.Add($service)
@@ -338,11 +357,14 @@ function Get-ItoServiceCheck {
     }
 
     $status = Get-ItoThresholdStatus -Value $failed.Count -Warning $Thresholds.StoppedServicesWarning -Critical $Thresholds.StoppedServicesCritical
-    $value = 'No automatic service has stopped with an error'
+    $value = 'No essential service is stopped and no automatic service stopped with an error'
     $notes = New-Object -TypeName System.Collections.Generic.List[string]
     if ($failed.Count -gt 0) {
-        $value = '{0} automatic service(s) stopped with an error or never started: {1}' -f $failed.Count, (($failed | ForEach-Object { $_.Name }) -join ', ')
-        $notes.Add('Check each service in services.msc and the System event log (source Service Control Manager, events 7000-7043) for the reason it stopped.')
+        $value = '{0} automatic service(s) stopped that should be running: {1}' -f $failed.Count, (($failed | ForEach-Object { $_.Name }) -join ', ')
+        if ($essentialStopped.Count -gt 0) {
+            $notes.Add(('Essential, so counted even after a clean stop: {0}.' -f (($essentialStopped | ForEach-Object { $_.Name }) -join ', ')))
+        }
+        $notes.Add('Check each service in services.msc and the System event log (source Service Control Manager, events 7000-7043) for the reason it stopped, then start it.')
     }
     if ($cleanStops.Count -gt 0) {
         $notes.Add(('For information, not counted: {0} automatic service(s) stopped cleanly (exit code 0), which is usual for services that stop once their work is done: {1}.' -f $cleanStops.Count, (($cleanStops | ForEach-Object { $_.Name }) -join ', ')))
@@ -351,7 +373,7 @@ function Get-ItoServiceCheck {
         $notes.Add((Format-ItoInvariant -Format 'Not counted yet: {0} delayed-start service(s) that Windows starts a few minutes after boot ({1:0} minute(s) ago): {2}.' -Arguments $pending.Count, $minutesSinceBoot, (($pending | ForEach-Object { $_.Name }) -join ', ')))
     }
     ConvertTo-ItoHealthCheck -Name 'Automatic services' -Category 'Services' -Status $status -Value $value -Detail ($notes -join ' ') `
-        -Threshold (Format-ItoInvariant -Format 'Warning at {0}, critical at {1} automatic services stopped with an error or never started (clean stops, trigger-start and ignored services, and delayed-start services in the first {2} minutes after boot, are not counted)' -Arguments $Thresholds.StoppedServicesWarning, $Thresholds.StoppedServicesCritical, $Thresholds.DelayedStartGraceMinutes) `
+        -Threshold (Format-ItoInvariant -Format 'Warning at {0}, critical at {1} automatic services that stopped with an error or never started, or are essential ({3}) and stopped for any reason (other clean stops, trigger-start and ignored services, and delayed-start services in the first {2} minutes after boot, are not counted)' -Arguments $Thresholds.StoppedServicesWarning, $Thresholds.StoppedServicesCritical, $Thresholds.DelayedStartGraceMinutes, (@($essential) -join ', ')) `
         -Data @($data)
 }
 

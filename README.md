@@ -87,10 +87,11 @@ parameter validation and `-WhatIf`/`-Confirm` on everything that changes state):
   result that names what was not done.
 - `Get-ItoLockoutSource` shows whether an account is locked out and which computers caused it,
   from event 4740 on the PDC emulator.
-- `Get-ItoHealthReport` grades disk space, memory, uptime, pending reboot, automatic services that
-  stopped with an error, recent critical events, the last update installed and BitLocker status
-  against clear thresholds, and writes HTML and JSON. Services that stopped cleanly are listed for
-  information, not counted.
+- `Get-ItoHealthReport` grades disk space, memory, uptime, pending reboot, stopped automatic
+  services, recent critical events, the last update installed and BitLocker status against clear
+  thresholds, and writes HTML and JSON. Essential services such as the print spooler and DNS
+  client count whenever they are stopped; other services count only when they stopped with an
+  error, and clean stops are listed for information.
 - `Test-ItoNetwork` checks IP configuration, gateway, DNS servers, DNS resolution, TCP port,
   HTTPS and a route trace, and names the lowest failing layer in plain language.
 - `New-ItoRandomPassword` generates passwords from the operating system's cryptographic random
@@ -253,12 +254,16 @@ domain controller is `--url` or `ITO_LDAP_URL`.
 | Free disk space | below 20% | below 10% |
 | Memory in use | 85% | 95% |
 | Uptime | 14 days | 30 days |
-| Automatic services stopped with an error / failed units | 1 | 5 |
+| Stopped automatic services that count (see below) / failed units | 1 | 5 |
 | Critical events / journal entries (24 h) | 1 | 5 |
 | Days since the last update (Linux: the last package upgrade) | 35 | 60 |
 
-Automatic services that stopped cleanly (exit code 0) are listed for information and not counted,
-and delayed-start services are not counted in the first 10 minutes after boot.
+A stopped automatic service counts when it stopped with an error or never started, or when it is
+on the essential list (`Dhcp`, `Dnscache`, `EventLog`, `LanmanWorkstation`, `mpssvc`, `Spooler`,
+`Winmgmt`), whatever its exit code. Other services that stopped cleanly (exit code 0) are listed
+for information and not counted, and delayed-start services are not counted in the first 10
+minutes after boot. `essentialServices` and `ignoredServices` in the threshold file change the
+lists; see [decision 16](docs/decisions.md).
 
 ## Running the tests
 

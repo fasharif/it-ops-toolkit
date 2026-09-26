@@ -97,6 +97,7 @@ footer { margin-top: 2rem; color: #57606a; font-size: 0.85rem; }
         [void]$builder.AppendLine('<tbody>')
         $counted = @{
             Failed              = 'Yes: stopped with an error or never started'
+            EssentialStopped    = 'Yes: an essential service, stopped'
             StoppedCleanly      = 'No: stopped cleanly, for information'
             DelayedStartPending = 'Not yet: delayed start, soon after boot'
         }

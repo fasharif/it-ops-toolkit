@@ -32,9 +32,11 @@ Linux with CUPS.
 
    A port name starting with `WSD` means the printer was added through Web Services for Devices,
    which often shows printers as offline after they change address.
-5. Run `Get-ItoHealthReport`: a Print Spooler that crashed appears under "Automatic services" as
-   a Warning, with its exit code. One that someone stopped cleanly (exit code 0) is listed in the
-   detail for information, so read the detail too.
+5. Run `Get-ItoHealthReport`: a stopped Print Spooler appears under "Automatic services" as a
+   Warning, with its exit code, whether it crashed or someone stopped it. The spooler is on the
+   report's essential services list, which counts it even after a clean stop (exit code 0). This
+   applies when the spooler is set to start automatically; a spooler disabled on purpose, as some
+   organisations do on computers that never print, is not reported.
 
 ## Fix
 
@@ -87,12 +89,13 @@ The CUPS web interface at <http://localhost:631> shows the error that stopped th
 
 - Give printers DHCP reservations or fixed addresses, and use Standard TCP/IP ports, not WSD.
 - Deploy printers and drivers centrally (Group Policy, Intune or Universal Print).
-- Watch for a stopped spooler with the health report.
+- Watch for a stopped spooler with the health report, for example from a scheduled task that
+  runs it daily and collects the JSON files.
 
 ## Scripts that help
 
 - [`Get-ItoHealthReport`](../../src/ItOpsToolkit/Public/Get-ItoHealthReport.ps1): flags a stopped
-  Print Spooler.
+  Print Spooler that is set to start automatically, however it stopped.
 - [`Test-ItoNetwork`](../../src/ItOpsToolkit/Public/Test-ItoNetwork.ps1): checks the path to the
   printer on its port.
 - [`health-report.sh`](../../linux/health-report.sh): lists failed systemd units, including

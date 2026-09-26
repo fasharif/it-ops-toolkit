@@ -96,8 +96,34 @@ Describe 'Get-ItoHealthReport' {
             }
             $check = Get-Check (Get-ItoHealthReport) 'Automatic services'
             $check.Status | Should -Be 'Warning'
-            $check.Value | Should -Be '1 automatic service(s) stopped with an error or never started: Spooler'
+            $check.Value | Should -Be '1 automatic service(s) stopped that should be running: Spooler'
             @($check.Data).Count | Should -Be 1
+        }
+
+        It 'counts an essential service such as the Print Spooler even after a clean stop' {
+            Mock -ModuleName ItOpsToolkit Get-ItoStoppedServiceData {
+                [pscustomobject]@{ Name = 'Spooler'; DisplayName = 'Print Spooler'; State = 'Stopped'; DelayedAutoStart = $false; TriggerStart = $false; ExitCode = 0 }
+                [pscustomobject]@{ Name = 'Dnscache'; DisplayName = 'DNS Client'; State = 'Stopped'; DelayedAutoStart = $false; TriggerStart = $true; ExitCode = 0 }
+            }
+            $check = Get-Check (Get-ItoHealthReport) 'Automatic services'
+            $check.Status | Should -Be 'Warning'
+            $check.Value | Should -Be '2 automatic service(s) stopped that should be running: Dnscache, Spooler'
+            $check.Detail | Should -BeLike 'Essential, so counted even after a clean stop: Dnscache, Spooler.*'
+            @($check.Data).Reason | Should -Be @('EssentialStopped', 'EssentialStopped')
+            $check.Threshold | Should -BeLike '*essential (Dhcp, Dnscache, EventLog, LanmanWorkstation, mpssvc, Spooler, Winmgmt)*'
+        }
+
+        It 'lets the ignored list win over the essential list, and reads both from a threshold file' {
+            $path = Join-Path -Path $TestDrive -ChildPath 'service-thresholds.json'
+            Set-Content -LiteralPath $path -Value '{ "ignoredServices": ["Spooler"], "essentialServices": ["W32Time"] }' -Encoding UTF8
+            Mock -ModuleName ItOpsToolkit Get-ItoStoppedServiceData {
+                [pscustomobject]@{ Name = 'Spooler'; DisplayName = 'Print Spooler'; State = 'Stopped'; DelayedAutoStart = $false; TriggerStart = $false; ExitCode = 1067 }
+                [pscustomobject]@{ Name = 'Dnscache'; DisplayName = 'DNS Client'; State = 'Stopped'; DelayedAutoStart = $false; TriggerStart = $false; ExitCode = 0 }
+                [pscustomobject]@{ Name = 'W32Time'; DisplayName = 'Windows Time'; State = 'Stopped'; DelayedAutoStart = $false; TriggerStart = $false; ExitCode = 0 }
+            }
+            $check = Get-Check (Get-ItoHealthReport -ThresholdPath $path) 'Automatic services'
+            $check.Value | Should -Be '1 automatic service(s) stopped that should be running: W32Time'
+            @($check.Data | ForEach-Object { '{0}={1}' -f $_.Name, $_.Reason }) | Should -Be @('Dnscache=StoppedCleanly', 'W32Time=EssentialStopped')
         }
 
         It 'lists services that stopped cleanly for information without counting them' {
@@ -108,7 +134,7 @@ Describe 'Get-ItoHealthReport' {
             $report = Get-ItoHealthReport
             $check = Get-Check $report 'Automatic services'
             $check.Status | Should -Be 'OK'
-            $check.Value | Should -Be 'No automatic service has stopped with an error'
+            $check.Value | Should -Be 'No essential service is stopped and no automatic service stopped with an error'
             $check.Detail | Should -Be 'For information, not counted: 1 automatic service(s) stopped cleanly (exit code 0), which is usual for services that stop once their work is done: VendorUpdater.'
             @($check.Data).Reason | Should -Be @('StoppedCleanly')
             $report.OverallStatus | Should -Be 'OK'
@@ -283,12 +309,14 @@ Describe 'Get-ItoHealthReport' {
 
         It 'shows in the HTML which stopped services count and which are for information' {
             Mock -ModuleName ItOpsToolkit Get-ItoStoppedServiceData {
-                [pscustomobject]@{ Name = 'Spooler'; DisplayName = 'Print Spooler'; State = 'Stopped'; DelayedAutoStart = $false; TriggerStart = $false; ExitCode = 1067 }
+                [pscustomobject]@{ Name = 'VendorAgent'; DisplayName = 'Vendor agent'; State = 'Stopped'; DelayedAutoStart = $false; TriggerStart = $false; ExitCode = 1067 }
+                [pscustomobject]@{ Name = 'Spooler'; DisplayName = 'Print Spooler'; State = 'Stopped'; DelayedAutoStart = $false; TriggerStart = $false; ExitCode = 0 }
                 [pscustomobject]@{ Name = 'VendorUpdater'; DisplayName = 'Vendor updater'; State = 'Stopped'; DelayedAutoStart = $false; TriggerStart = $false; ExitCode = 0 }
             }
             $report = Get-ItoHealthReport -OutputDirectory $script:outDir
             $html = Get-Content -LiteralPath $report.HtmlPath -Raw
-            $html | Should -Match '<td>Spooler</td><td>Print Spooler</td><td>Stopped</td><td>1067</td><td>Yes: stopped with an error or never started</td>'
+            $html | Should -Match '<td>VendorAgent</td><td>Vendor agent</td><td>Stopped</td><td>1067</td><td>Yes: stopped with an error or never started</td>'
+            $html | Should -Match '<td>Spooler</td><td>Print Spooler</td><td>Stopped</td><td>0</td><td>Yes: an essential service, stopped</td>'
             $html | Should -Match '<td>VendorUpdater</td><td>Vendor updater</td><td>Stopped</td><td>0</td><td>No: stopped cleanly, for information</td>'
         }
 

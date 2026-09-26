@@ -14,5 +14,6 @@
   "updateAgeDaysWarning": 35,
   "updateAgeDaysCritical": 60,
   "bitLockerOffStatus": "Warning",
-  "ignoredServices": ["clr_optimization_*", "edgeupdate*", "gupdate*", "GoogleUpdater*", "MapsBroker", "RemoteRegistry", "sppsvc", "tiledatamodelsvc", "WslInstaller"]
+  "ignoredServices": ["clr_optimization_*", "edgeupdate*", "gupdate*", "GoogleUpdater*", "MapsBroker", "RemoteRegistry", "sppsvc", "tiledatamodelsvc", "WslInstaller"],
+  "essentialServices": ["Dhcp", "Dnscache", "EventLog", "LanmanWorkstation", "mpssvc", "Spooler", "Winmgmt"]
 }

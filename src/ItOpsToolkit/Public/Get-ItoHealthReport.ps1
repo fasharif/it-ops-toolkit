@@ -12,10 +12,12 @@ function Get-ItoHealthReport {
         - Pending reboot: Windows Update, component servicing, file rename operations or a
           computer rename waiting for a restart (warning).
         - Automatic services: services set to start automatically that stopped with an error or
-          never started (warning at 1, critical at 5). Not counted: services that stopped
-          cleanly (exit code 0, listed for information), trigger-start services, a list of
-          services that stop by design, and delayed-start services in the first 10 minutes
-          after boot.
+          never started, and essential services (DHCP client, DNS client, event log,
+          workstation, firewall, print spooler and WMI) that are stopped for any reason
+          (warning at 1, critical at 5). Not counted: other services that stopped cleanly
+          (exit code 0, listed for information), trigger-start services that are not
+          essential, a list of services that stop by design, and delayed-start services in the
+          first 10 minutes after boot. Both lists can be changed in the threshold file.
         - Critical events: level 1 events in the System and Application logs in the last
           24 hours (warning at 1, critical at 5).
         - Last update installed: days since the newest hotfix was installed (warning after 35

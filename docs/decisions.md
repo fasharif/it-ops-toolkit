@@ -259,3 +259,28 @@ reduced to ASCII automatically, because that mapping is not in doubt.
 asks for. The shared fixture `tests/fixtures/feed-rows.csv` checks both toolkits with Arabic
 names, and the Samba integration test creates an account with an Arabic display name and a
 Latin account name.
+
+## 16. Which stopped services the health report counts
+
+**Context.** Windows has many services set to start automatically that stop by design once their
+work is done, with exit code 0. Counting every stopped automatic service gave warnings on healthy
+PCs, so the report was changed to count only services that stopped with an error. That fixed the
+false positives but created a false negative: a Print Spooler stopped with `Stop-Service` or from
+services.msc also exits with 0, and a stopped spooler is exactly what the printer ticket needs
+to find (KB 05).
+
+**Decision.** A stopped automatic service counts when it stopped with an error or never started,
+or when it is on a short essential list, whatever its exit code: `Dhcp`, `Dnscache`, `EventLog`,
+`LanmanWorkstation`, `mpssvc`, `Spooler` and `Winmgmt`, the services behind common tickets
+(addresses, name resolution, logging, file shares, firewall, printing, management). Essential
+services count even when they are trigger-start. The ignored list wins over the essential list,
+and both can be changed in the threshold file (`essentialServices`, `ignoredServices`).
+Delayed-start services are not counted in the first 10 minutes after boot.
+
+**Consequences.** Only services set to start automatically are read, so a service disabled on
+purpose (for example the spooler on computers that never print) is never reported. A
+third-party service that someone stopped cleanly is still only listed for information; add it
+to `essentialServices` if it matters. `W32Time` and `WinDefend` were left off the default list,
+because whether they run depends on domain membership and on the antivirus product in use, which
+would bring back false positives on some PCs.
+
