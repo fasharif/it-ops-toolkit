@@ -367,6 +367,31 @@ Describe 'New-ItoUser' {
             $decrypted | Should -Match ('Initial password: ' + [regex]::Escape($plain))
         }
 
+        It 'writes delivery files to a relative -DeliveryPath under the PowerShell location, not the process directory' {
+            # .NET file methods resolve a relative path against the process directory, which
+            # Set-Location does not change (an elevated prompt starts in C:\Windows\System32).
+            $workFolder = Join-Path -Path $TestDrive -ChildPath 'relative-work'
+            $deliveryFolder = Join-Path -Path $workFolder -ChildPath 'delivery'
+            $null = New-Item -ItemType Directory -Path $deliveryFolder -Force
+            $certificate = New-TestDeliveryCertificate -Directory $TestDrive
+            $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
+
+            Push-Location -LiteralPath $workFolder
+            try {
+                [System.IO.Path]::GetFullPath('delivery') | Should -Not -Be $deliveryFolder -Because 'the process directory must differ from the PowerShell location for this test'
+                $result = New-ItoUser -Path $feed -ConfigPath $script:configPath -DeliveryPath 'delivery' -DeliveryCertificate $certificate.CerPath -Confirm:$false
+            }
+            finally {
+                Pop-Location
+            }
+
+            $expected = Join-Path -Path $deliveryFolder -ChildPath 'sara.ali.cms'
+            $result.Warnings | Should -BeNullOrEmpty
+            $result.DeliveryFile | Should -Be $expected
+            [System.IO.Path]::IsPathRooted($result.DeliveryFile) | Should -BeTrue
+            Unprotect-CmsMessage -Path $expected -To $certificate.Certificate | Should -Match 'Account: sara.ali'
+        }
+
         It 'writes delivery files that openssl can decrypt too, for service desks on Linux' -Skip:($PSVersionTable.PSEdition -ne 'Core' -or -not (Get-Command -Name openssl -ErrorAction SilentlyContinue)) {
             $delivery = Join-Path -Path $TestDrive -ChildPath 'delivery-openssl'
             $null = New-Item -ItemType Directory -Path $delivery -Force

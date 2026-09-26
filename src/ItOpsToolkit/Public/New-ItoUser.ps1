@@ -151,8 +151,13 @@ function New-ItoUser {
         Assert-ItoActiveDirectory
         $config = Read-ItoOnboardingConfig -Path $ConfigPath
         $deliveryRecipient = $null
+        $deliveryFolder = $null
         if ($hasDeliveryCertificate) {
             $deliveryRecipient = Assert-ItoDeliveryCertificate -Certificate $DeliveryCertificate
+            # The delivery files are written with .NET, which resolves a relative path against the
+            # process directory. Set-Location does not change that, so resolve the folder here,
+            # against the current PowerShell location, as the parameter validation did.
+            $deliveryFolder = (Resolve-Path -LiteralPath $DeliveryPath).ProviderPath
         }
 
         $adParameters = Get-ItoAdParameter -Server $Server -Credential $Credential -PinDomainController
@@ -328,7 +333,7 @@ function New-ItoUser {
 
                 if ($hasDeliveryPath) {
                     try {
-                        $result.DeliveryFile = Write-ItoDeliveryFile -Directory $DeliveryPath -SamAccountName $samAccountName `
+                        $result.DeliveryFile = Write-ItoDeliveryFile -Directory $deliveryFolder -SamAccountName $samAccountName `
                             -UserPrincipalName $userPrincipalName -Password $password -Certificate $deliveryRecipient
                     }
                     catch {
