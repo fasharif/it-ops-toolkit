@@ -103,8 +103,10 @@ editions.
 order mark. Bash has no reliable CSV parser.
 
 **Decision.** `linux/lib/hrfeed.py` parses the CSV with Python's `csv` module, validates each row
-with the same rules as the PowerShell module, and normalises names with `unicodedata` (NFKD, then
-ASCII letters and digits only). Python 3 is already a hard dependency of `samba-tool`. The helper
+with the same rules as the PowerShell module, and normalises names the same way: Latin letters
+that have no Unicode decomposition are spelled in ASCII first (ß as ss, ø as o, ł as l, þ as th
+and so on), then `unicodedata` decomposes the rest (NFKD) and only ASCII letters and digits are
+kept. Python 3 is already a hard dependency of `samba-tool`. The helper
 is type-checked with `mypy --strict` and linted with ruff.
 
 **Consequences.** One Python file in a Bash toolkit. Its output uses the ASCII unit separator

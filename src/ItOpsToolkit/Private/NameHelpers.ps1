@@ -1,11 +1,28 @@
+# Latin letters that have no Unicode decomposition, with their usual ASCII spelling, keyed by
+# code point: sharp s (both cases), ae, oe, o with stroke, l with stroke, d with stroke, eth,
+# thorn and dotless i. linux/lib/hrfeed.py has the same table.
+$script:ItoTransliteration = @{
+    0x00DF = 'ss'; 0x1E9E = 'ss'
+    0x00E6 = 'ae'; 0x00C6 = 'ae'
+    0x0153 = 'oe'; 0x0152 = 'oe'
+    0x00F8 = 'o'; 0x00D8 = 'o'
+    0x0142 = 'l'; 0x0141 = 'l'
+    0x0111 = 'd'; 0x0110 = 'd'
+    0x00F0 = 'd'; 0x00D0 = 'd'
+    0x00FE = 'th'; 0x00DE = 'th'
+    0x0131 = 'i'
+}
+
 function ConvertTo-ItoAsciiName {
     <#
     .SYNOPSIS
         Reduces a person's name to lower-case ASCII letters and digits for account names.
     .DESCRIPTION
-        Decomposes the name (Unicode NFKD), drops combining marks, and keeps only a-z and 0-9.
-        'Jos\u00e9' becomes 'jose', 'Al-Mansoori' becomes 'almansoori' and "O'Brien" becomes 'obrien'.
-        Letters with no ASCII decomposition (for example sharp s, U+00DF, or Arabic script) are dropped.
+        First spells the Latin letters that have no Unicode decomposition in ASCII (sharp s as
+        'ss', ae, oe, o and l with stroke, thorn as 'th' and so on), then decomposes the name
+        (Unicode NFKD), drops combining marks, and keeps only a-z and 0-9. 'Jos\u00e9' becomes
+        'jose', 'Stra\u00dfe' becomes 'strasse', 'Al-Mansoori' becomes 'almansoori' and "O'Brien"
+        becomes 'obrien'. Scripts other than Latin (for example Arabic) are dropped.
         linux/lib/hrfeed.py applies the same rules, so both toolkits produce the same names.
     #>
     [CmdletBinding()]
@@ -16,7 +33,17 @@ function ConvertTo-ItoAsciiName {
         [string] $Name
     )
 
-    $decomposed = $Name.Normalize([System.Text.NormalizationForm]::FormKD)
+    $spelled = New-Object -TypeName System.Text.StringBuilder
+    foreach ($character in $Name.ToCharArray()) {
+        $replacement = $script:ItoTransliteration[[int]$character]
+        if ($null -ne $replacement) {
+            [void]$spelled.Append($replacement)
+        }
+        else {
+            [void]$spelled.Append($character)
+        }
+    }
+    $decomposed = $spelled.ToString().Normalize([System.Text.NormalizationForm]::FormKD)
     $builder = New-Object -TypeName System.Text.StringBuilder
     foreach ($character in $decomposed.ToCharArray()) {
         $code = [int]$character

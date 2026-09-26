@@ -155,11 +155,13 @@ Describe 'Account name rules' {
         }
     }
 
-    It 'drops letters that have no ASCII form' {
+    It 'spells Latin letters without a decomposition in ASCII and drops other scripts' {
         InModuleScope ItOpsToolkit {
             $arabic = -join ([char[]](0x0633, 0x0627, 0x0631, 0x0629))
             ConvertTo-ItoAsciiName -Name $arabic | Should -BeExactly ''
-            ConvertTo-ItoAsciiName -Name ('Stra' + [char]0x00DF + 'e') | Should -BeExactly 'strae'
+            ConvertTo-ItoAsciiName -Name ('Stra' + [char]0x00DF + 'e') | Should -BeExactly 'strasse'
+            ConvertTo-ItoAsciiName -Name ([string][char]0x1E9E + [char]0x00C6 + [char]0x0152 + [char]0x00D8 + [char]0x0141 + [char]0x0110 + [char]0x00D0 + [char]0x00DE + [char]0x0131) |
+                Should -BeExactly 'ssaeoeolddthi'
         }
     }
 

@@ -37,14 +37,42 @@ EMPLOYEE_ID = re.compile(r"^[A-Za-z0-9-]{1,16}$")
 ACCOUNT_NAME = re.compile(r"^[A-Za-z0-9._-]{1,20}$")
 NAME_PUNCTUATION = frozenset(" .'-\u2019")  # \u2019 is the typographic apostrophe
 SEPARATOR = "\x1f"
+# Latin letters that have no Unicode decomposition, with their usual ASCII spelling: sharp s
+# (both cases), ae, oe, o with stroke, l with stroke, d with stroke, eth, thorn and dotless i.
+# ConvertTo-ItoAsciiName in the PowerShell module has the same table.
+TRANSLITERATION = str.maketrans(
+    {
+        "\u00df": "ss",
+        "\u1e9e": "ss",
+        "\u00e6": "ae",
+        "\u00c6": "ae",
+        "\u0153": "oe",
+        "\u0152": "oe",
+        "\u00f8": "o",
+        "\u00d8": "o",
+        "\u0142": "l",
+        "\u0141": "l",
+        "\u0111": "d",
+        "\u0110": "d",
+        "\u00f0": "d",
+        "\u00d0": "d",
+        "\u00fe": "th",
+        "\u00de": "th",
+        "\u0131": "i",
+    }
+)
 MAX_NAME_LENGTH = 64
 MAX_TITLE_LENGTH = 64
 MAX_CN_LENGTH = 64  # the account's CN is "GivenName Surname"; Active Directory allows 64 characters
 
 
 def ascii_name(name: str) -> str:
-    """Lower-case ASCII letters and digits of a name, after Unicode NFKD decomposition."""
-    decomposed = unicodedata.normalize("NFKD", name)
+    """Lower-case ASCII letters and digits of a name.
+
+    Letters without a Unicode decomposition are spelled first (TRANSLITERATION), then the name
+    is decomposed (NFKD) and everything but ASCII letters and digits is dropped.
+    """
+    decomposed = unicodedata.normalize("NFKD", name.translate(TRANSLITERATION))
     return "".join(ch.lower() for ch in decomposed if ch.isascii() and ch.isalnum())
 
 
