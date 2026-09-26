@@ -144,7 +144,9 @@ function Test-ItoNetwork {
 
         # 3. DNS servers
         Write-Verbose 'Layer 3: DNS servers.'
-        $dnsServers = @($usable | ForEach-Object { $_.DnsServers } | Where-Object { $_ } | Select-Object -Unique)
+        # Windows lists fec0:0:0:ffff::1, ::2 and ::3 (deprecated site-local placeholders) as IPv6
+        # DNS servers when none is configured; they are not real servers, so leave them out.
+        $dnsServers = @($usable | ForEach-Object { $_.DnsServers } | Where-Object { $_ -and $_ -notmatch '^fec0:0:0:ffff::[1-3](%\d+)?$' } | Select-Object -Unique)
         if ($dnsServers.Count -eq 0) {
             $layers.Add((ConvertTo-ItoNetworkLayer -Layer 'DNS servers' -Status 'Warn' -Code 'NoDnsServers' -Detail 'No DNS servers are configured on the active adapters.'))
         }

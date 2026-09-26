@@ -21,7 +21,8 @@ Works up the network stack the way a service desk analyst would, then names the 
 layer that failed and says what to do:
   1. IP configuration  an interface is up with a usable IPv4 address (169.254.x.x means DHCP failed)
   2. Default gateway   one is configured, and whether it answers ping (no answer is only a warning)
-  3. DNS servers       any are configured in /etc/resolv.conf
+  3. DNS servers       any are configured in /etc/resolv.conf (or, behind the systemd-resolved
+                       stub 127.0.0.53, the servers resolvectl lists)
   4. DNS resolution    HOST resolves; if not, a control name tells a missing record from a DNS outage
   5. TCP port          HOST accepts a connection on the port
   6. HTTPS             for port 443, a TLS handshake and HTTP request succeed
@@ -174,12 +175,23 @@ else
         add_layer 'Default gateway' Warn GatewayNoReply "$gateway did not answer ping."
     fi
 
-    # 3. DNS servers
+    # 3. DNS servers. With systemd-resolved (Ubuntu and others), /etc/resolv.conf lists only its
+    # local stub, 127.0.0.53, so ask resolvectl for the servers it forwards to. Its lines look
+    # like "Global: 1.1.1.1" or "Link 2 (eth0): 192.168.1.1 fd00::1".
     mapfile -t dns_servers < <(awk '$1 == "nameserver" { print $2 }' "$RESOLV_CONF" 2>/dev/null)
+    dns_source=''
+    if [[ ${dns_servers[*]:-} == 127.0.0.53 ]] && command -v resolvectl >/dev/null 2>&1; then
+        mapfile -t upstream < <(resolvectl dns 2>/dev/null |
+            awk -F': ' 'NF > 1 { n = split($2, a, " "); for (i = 1; i <= n; i++) if (!seen[a[i]]++) print a[i] }')
+        if ((${#upstream[@]} > 0)); then
+            dns_servers=("${upstream[@]}")
+            dns_source=' (from systemd-resolved)'
+        fi
+    fi
     if ((${#dns_servers[@]} == 0)); then
         add_layer 'DNS servers' Warn NoDnsServers "No DNS servers are listed in $RESOLV_CONF."
     else
-        add_layer 'DNS servers' Pass Ok "DNS servers: $(join_by ', ' "${dns_servers[@]}")."
+        add_layer 'DNS servers' Pass Ok "DNS servers$dns_source: $(join_by ', ' "${dns_servers[@]}")."
     fi
 
     # 4. DNS resolution (through NSS, as applications resolve names)

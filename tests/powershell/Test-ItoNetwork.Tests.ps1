@@ -98,6 +98,24 @@ Describe 'Test-ItoNetwork diagnosis' {
         $result.Diagnosis | Should -BeLike 'Name resolution is failing*ipconfig /flushdns*'
     }
 
+    It 'leaves out the fec0:0:0:ffff:: placeholders that Windows lists when no IPv6 DNS server is set' {
+        Mock -ModuleName ItOpsToolkit Get-ItoNetworkInterfaceData {
+            [pscustomobject]@{ Name = 'Wi-Fi'; Description = 'Intel'; InterfaceType = 'Wireless80211'; IPv4Addresses = @('192.168.1.23'); Gateways = @('192.168.1.1')
+                DnsServers = @('1.1.1.1', 'fec0:0:0:ffff::1%1', 'fec0:0:0:ffff::2%1', 'fec0:0:0:ffff::3%1', '2606:4700:4700::1111')
+            }
+        }
+        $result = Test-ItoNetwork -ComputerName 'portal.example.com' -SkipTrace
+        (Get-Layer $result 'DNS servers').Detail | Should -Be 'DNS servers: 1.1.1.1, 2606:4700:4700::1111.'
+    }
+
+    It 'treats an adapter with only the placeholders as having no DNS servers' {
+        Mock -ModuleName ItOpsToolkit Get-ItoNetworkInterfaceData {
+            [pscustomobject]@{ Name = 'Ethernet'; Description = 'Realtek'; InterfaceType = 'Ethernet'; IPv4Addresses = @('10.1.2.3'); Gateways = @('10.1.0.1'); DnsServers = @('fec0:0:0:ffff::1%1', 'fec0:0:0:ffff::2%1') }
+        }
+        $result = Test-ItoNetwork -ComputerName 'portal.example.com' -SkipTrace
+        (Get-Layer $result 'DNS servers').Code | Should -Be 'NoDnsServers'
+    }
+
     It 'says when no DNS servers are configured' {
         Mock -ModuleName ItOpsToolkit Get-ItoNetworkInterfaceData {
             [pscustomobject]@{ Name = 'Ethernet'; Description = 'Realtek'; InterfaceType = 'Ethernet'; IPv4Addresses = @('10.1.2.3'); Gateways = @('10.1.0.1'); DnsServers = @() }

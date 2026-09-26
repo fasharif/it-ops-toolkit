@@ -54,6 +54,22 @@ check() {
     "$REPO_ROOT/linux/net-check.sh" "$@"
 }
 
+@test 'lists the servers behind the systemd-resolved stub instead of 127.0.0.53' {
+    printf 'nameserver 127.0.0.53\noptions edns0 trust-ad\nsearch .\n' >"$T/resolv.conf"
+    fake resolvectl '[[ $1 == dns ]] || exit 1
+printf "Global:\nLink 2 (eth0): 192.168.1.1 fd00::1\nLink 3 (wlan0): 192.168.1.1\n"'
+    run check --no-trace portal.example.com
+    assert_success
+    assert_line --regexp '^DNS servers +Pass +DNS servers \(from systemd-resolved\): 192\.168\.1\.1, fd00::1\.$'
+}
+
+@test 'shows the stub address when resolvectl lists no servers' {
+    printf 'nameserver 127.0.0.53\n' >"$T/resolv.conf"
+    fake resolvectl 'printf "Global:\nLink 2 (eth0):\n"'
+    run check --no-trace portal.example.com
+    assert_line --regexp '^DNS servers +Pass +DNS servers: 127\.0\.0\.53\.$'
+}
+
 @test 'reports a healthy path and exits 0' {
     run check portal.example.com
     assert_success
