@@ -65,7 +65,7 @@ check() {
     assert_line --regexp '^TCP port +Pass +Connected to 203\.0\.113\.10 on port 443\.$'
     assert_line --regexp '^HTTPS +Pass +TLS handshake completed; the server answered with HTTP status 200\.$'
     assert_line --regexp '^Route trace +Info +Reached 203\.0\.113\.10 in 3 hop\(s\)\.$'
-    assert_line "Diagnosis: No fault found: 'portal.example.com' resolves and port 443 accepts connections, and HTTPS answers."
+    assert_line "Diagnosis: No fault found: 'portal.example.com' resolves, port 443 accepts connections and HTTPS answers."
 }
 
 @test 'checks www.microsoft.com when no host is given' {

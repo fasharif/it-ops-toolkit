@@ -260,6 +260,15 @@ dpkg_log_lines() {
     done
 }
 
+# days_ago N: "today", "1 day ago" or "N days ago".
+days_ago() {
+    case $1 in
+        0) printf 'today' ;;
+        1) printf '1 day ago' ;;
+        *) printf '%s days ago' "$1" ;;
+    esac
+}
+
 check_updates() {
     local threshold last='' oldest='' source='' value epoch age status detail=''
     threshold="Warning after ${UPDATE_WARN} days, critical after ${UPDATE_CRIT} days (days since the last package upgrade)"
@@ -277,10 +286,10 @@ check_updates() {
     fi
     if [[ -n $last ]]; then
         age=$((($(date -u +%s) - $(date -u -d "$last" +%s)) / 86400))
-        value="$last ($age days ago, from the $source)"
+        value="$last ($(days_ago "$age"), from the $source)"
     elif [[ -n $oldest ]]; then
         age=$((($(date -u +%s) - $(date -u -d "$oldest" +%s)) / 86400))
-        value="No upgrade since the dpkg logs began on $oldest ($age days ago)"
+        value="No upgrade since the dpkg logs began on $oldest ($(days_ago "$age"))"
     else
         add_check 'Last package update' Unknown '' "$threshold" 'No package history was found (dpkg log or rpm database).'
         return

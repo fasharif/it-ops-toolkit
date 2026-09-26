@@ -370,11 +370,11 @@ diagnose() {
             printf "Port %s on '%s' accepts connections, but the HTTPS request failed: %s" "$PORT" "$TARGET" "$(detail_of HTTPS)"
             return ;;
     esac
-    printf "No fault found: '%s' resolves and port %s accepts connections" "$TARGET" "$PORT"
     if [[ $https_code == Ok ]]; then
-        printf ', and HTTPS answers'
+        printf "No fault found: '%s' resolves, port %s accepts connections and HTTPS answers." "$TARGET" "$PORT"
+    else
+        printf "No fault found: '%s' resolves and port %s accepts connections." "$TARGET" "$PORT"
     fi
-    printf '.'
     if [[ $gateway_quiet == true ]]; then
         printf ' The default gateway does not answer ping, which many routers and firewalls do by design.'
     fi

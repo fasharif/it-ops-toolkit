@@ -201,6 +201,15 @@ Describe 'Get-ItoHealthReport' {
             (Get-Check (Get-ItoHealthReport) 'Last update installed').Status | Should -Be $Expected
         }
 
+        It 'says <Expected> for an update installed <Days> day(s) ago' -ForEach @(
+            @{ Days = 0; Expected = 'today' }
+            @{ Days = 1; Expected = '1 day ago' }
+            @{ Days = 2; Expected = '2 days ago' }
+        ) {
+            Mock -ModuleName ItOpsToolkit Get-ItoLastUpdateData { [pscustomobject]@{ HotFixId = 'KB1'; Description = 'Update'; InstalledOn = (Get-Date).Date.AddDays(-$Days) } }
+            (Get-Check (Get-ItoHealthReport) 'Last update installed').Value | Should -BeLike "KB1 installed * ($Expected)"
+        }
+
         It 'is Unknown when no update has an installation date' {
             Mock -ModuleName ItOpsToolkit Get-ItoLastUpdateData { }
             (Get-Check (Get-ItoHealthReport) 'Last update installed').Status | Should -Be 'Unknown'

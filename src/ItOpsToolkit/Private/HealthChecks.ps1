@@ -438,8 +438,13 @@ function Get-ItoUpdateCheck {
     if ($status -ne 'OK') {
         $detail = 'Open Settings > Windows Update and install pending updates. If updates fail, check the WindowsUpdateClient events and free disk space.'
     }
+    $ago = switch ($days) {
+        0 { 'today' }
+        1 { '1 day ago' }
+        default { Format-ItoInvariant -Format '{0} days ago' -Arguments $days }
+    }
     ConvertTo-ItoHealthCheck -Name 'Last update installed' -Category 'Security' -Status $status -Threshold $threshold -Detail $detail `
-        -Value (Format-ItoInvariant -Format '{0} installed {1:yyyy-MM-dd} ({2} days ago)' -Arguments $LastUpdate.HotFixId, $installedOn, $days) `
+        -Value (Format-ItoInvariant -Format '{0} installed {1:yyyy-MM-dd} ({2})' -Arguments $LastUpdate.HotFixId, $installedOn, $ago) `
         -Data ([pscustomobject]@{ HotFixId = $LastUpdate.HotFixId; InstalledOn = $installedOn.ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture); AgeDays = $days })
 }
 

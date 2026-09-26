@@ -151,6 +151,15 @@ report() {
     assert_line --regexp '^Last package update +Critical +[0-9-]{10} \(70 days ago, from the rpm database\)$'
 }
 
+@test 'writes the update age as "today", "1 day ago" or "N days ago"' {
+    printf '%s 06:25:01 upgrade libc6:amd64 2.41-11 2.41-12\n' "$(date -u +%Y-%m-%d)" >"$ITO_DPKG_LOG"
+    run report
+    assert_line --regexp '^Last package update +OK +[0-9-]{10} \(today, from the dpkg log\)$'
+    printf '%s 06:25:01 upgrade libc6:amd64 2.41-11 2.41-12\n' "$(date -u -d '1 day ago' +%Y-%m-%d)" >"$ITO_DPKG_LOG"
+    run report
+    assert_line --regexp '^Last package update +OK +[0-9-]{10} \(1 day ago, from the dpkg log\)$'
+}
+
 @test 'does not count installing a new package as an update' {
     {
         printf '%s 06:25:01 upgrade libc6:amd64 2.41-11 2.41-12\n' "$(date -u -d '50 days ago' +%Y-%m-%d)"

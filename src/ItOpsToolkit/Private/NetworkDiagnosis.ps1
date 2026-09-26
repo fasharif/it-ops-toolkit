@@ -123,11 +123,12 @@ function Get-ItoNetworkDiagnosis {
         }
     }
 
-    $text = "No fault found: '$Target' resolves and port $Port accepts connections"
     if ($null -ne $https -and $https.Status -eq 'Pass') {
-        $text += ', and HTTPS answers'
+        $text = "No fault found: '$Target' resolves, port $Port accepts connections and HTTPS answers."
     }
-    $text += '.'
+    else {
+        $text = "No fault found: '$Target' resolves and port $Port accepts connections."
+    }
     if ($gatewayQuiet) {
         $text += ' The default gateway does not answer ping, which many routers and firewalls do by design.'
     }

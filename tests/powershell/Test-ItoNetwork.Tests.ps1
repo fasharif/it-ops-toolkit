@@ -29,7 +29,7 @@ Describe 'Test-ItoNetwork diagnosis' {
         $result.PSObject.TypeNames | Should -Contain 'ItOpsToolkit.NetworkDiagnosis'
         $result.Healthy | Should -BeTrue
         $result.FailedLayer | Should -BeNullOrEmpty
-        $result.Diagnosis | Should -Be "No fault found: 'portal.example.com' resolves and port 443 accepts connections, and HTTPS answers."
+        $result.Diagnosis | Should -Be "No fault found: 'portal.example.com' resolves, port 443 accepts connections and HTTPS answers."
         $result.Layers.Layer | Should -Be @('IP configuration', 'Default gateway', 'DNS servers', 'DNS resolution', 'TCP port', 'HTTPS', 'Route trace')
         $result.Layers.Status | Should -Be @('Pass', 'Pass', 'Pass', 'Pass', 'Pass', 'Pass', 'Info')
         (Get-Layer $result 'Route trace').Detail | Should -Be 'Reached 203.0.113.10 in 2 hop(s).'
