@@ -280,7 +280,7 @@ function New-ItoUser {
                     }
                 }
 
-                $description = 'Onboarded {0} by ItOpsToolkit' -f $today
+                $description = 'Onboarded {0} by it-ops-toolkit' -f $today
                 if (-not [string]::IsNullOrEmpty($row.StartDate)) {
                     $description = 'Start date {0}. {1}' -f $row.StartDate, $description
                 }

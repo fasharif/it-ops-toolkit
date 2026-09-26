@@ -129,7 +129,8 @@ Describe 'New-ItoUser' {
             $script:created[0].EmployeeID | Should -Be 'E77'
             $script:created[0].Title | Should -Be 'Accounts Assistant'
             $script:created[0].Department | Should -Be 'Finance'
-            $script:created[0].Description | Should -BeLike 'Start date 2026-10-05. Onboarded * by ItOpsToolkit'
+            # The same text as onboard-user.sh writes (tests/bats/onboard-user.bats checks the same pattern).
+            $script:created[0].Description | Should -MatchExactly '^Start date 2026-10-05\. Onboarded [0-9-]{10} by it-ops-toolkit$'
         }
 
         It 'sets the manager when the manager exists and warns when not' {
