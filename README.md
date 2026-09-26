@@ -9,9 +9,9 @@ base to match.
 ## Sample output
 
 Onboarding the example HR feed ([examples/new-starters.csv](examples/new-starters.csv)) into a
-real Samba Active Directory domain controller, from the integration test environment. Two people
-called Sara Ali get different account names, accents and apostrophes are handled, and each
-initial password goes only into an encrypted file:
+real Samba Active Directory domain controller: the throwaway test domain of the integration
+tests, in Docker. Two people called Sara Ali get different account names, accents and
+apostrophes are handled, and each initial password goes only into an encrypted file:
 
 ```text
 $ linux/onboard-user.sh --csv examples/new-starters.csv --config config/onboarding.example.json --deliver-dir /srv/it-ops/deliver --deliver-cert /srv/it-ops/delivery.pem
@@ -25,7 +25,8 @@ Row  Account               Status   Message
 Onboarding summary: 5 created.
 ```
 
-A network check on Windows 11 with Windows PowerShell 5.1, ending in a plain-language diagnosis:
+A network check in Windows PowerShell 5.1 on a Windows 11 PC, ending in a plain-language
+diagnosis:
 
 ```text
 PS> Test-ItoNetwork | Select-Object -ExpandProperty Layers
@@ -33,7 +34,7 @@ PS> Test-ItoNetwork | Select-Object -ExpandProperty Layers
 Layer            Status Detail
 -----            ------ ------
 IP configuration Pass   Wi-Fi: 192.168.50.112
-Default gateway  Pass   192.168.50.1 answers ping (2 ms).
+Default gateway  Pass   192.168.50.1 answers ping (1 ms).
 DNS servers      Pass   DNS servers: 1.1.1.1, 1.0.0.1, fec0:0:0:ffff::1%1, fec0:0:0:ffff::2%1, fec0:0:0:ffff::3%1.
 DNS resolution   Pass   www.microsoft.com resolves to 23.35.101.225.
 TCP port         Pass   Connected to 23.35.101.225 on port 443.
@@ -44,10 +45,12 @@ PS> (Test-ItoNetwork -ComputerName fileserver.corp.itops.test -Port 445 -SkipTra
 DNS works, but the name 'fileserver.corp.itops.test' does not resolve. Check the spelling. For an internal name, check that the record exists and that you are on the office network or VPN (split DNS).
 ```
 
-More real output is in [docs/samples](docs/samples): offboarding against Samba, the Linux health
-report and Born2beRoot summary, and a Windows health report as
-[HTML](docs/samples/windows-health-report.html) and [JSON](docs/samples/windows-health-report.json)
-(computer name and three third-party service names removed before publishing).
+More real output is in [docs/samples](docs/samples/README.md), which says where each file ran:
+offboarding against the Samba test domain, `Test-ItoNetwork` in PowerShell 7 on Linux, the Linux
+health report and Born2beRoot summary (from the Debian test container, not a server), and a
+Windows health report as [HTML](docs/samples/windows-health-report.html) and
+[JSON](docs/samples/windows-health-report.json) (computer name and three third-party service
+names removed before publishing). `scripts/make-samples.sh` regenerates the Linux samples.
 
 ## The problem it solves
 
@@ -70,17 +73,23 @@ parameter validation and `-WhatIf`/`-Confirm` on everything that changes state):
 
 - `New-ItoUser` creates Active Directory accounts from an HR feed CSV: department-to-OU and group
   mapping from JSON, unique `sAMAccountName` generation (first.last or flast, at most 20
-  characters, numbered on collision), a strong random initial password delivered only as a
-  CMS-encrypted file or a `SecureString`, "must change password at next logon", and a CSV summary.
-  Rows already onboarded (same employee ID) are skipped.
+  characters, numbered on collision, unique across users, groups and computers), a strong random
+  initial password delivered only as a CMS-encrypted file (to a certificate file, object or
+  thumbprint) or a `SecureString`, "must change password at next logon", and a CSV summary. The
+  password never passes through a command parameter, so PowerShell module logging cannot record
+  it. Rows already onboarded (same employee ID) are skipped, with a warning for any configured
+  group the existing account lacks. One domain controller is used for the whole run.
 - `Remove-ItoUser` offboards a leaver: exports group memberships for audit first, disables the
   account, records the ticket number in the description, removes groups and moves the account to
   the disabled users OU. Each step checks the current state, so a second run changes nothing.
+  Groups are never removed without the audit file; answering No at a prompt gives a `Partial`
+  result that names what was not done.
 - `Get-ItoLockoutSource` shows whether an account is locked out and which computers caused it,
   from event 4740 on the PDC emulator.
-- `Get-ItoHealthReport` grades disk space, memory, uptime, pending reboot, stopped automatic
-  services, recent critical events, the last update installed and BitLocker status against clear
-  thresholds, and writes HTML and JSON.
+- `Get-ItoHealthReport` grades disk space, memory, uptime, pending reboot, automatic services that
+  stopped with an error, recent critical events, the last update installed and BitLocker status
+  against clear thresholds, and writes HTML and JSON. Services that stopped cleanly are listed for
+  information, not counted.
 - `Test-ItoNetwork` checks IP configuration, gateway, DNS servers, DNS resolution, TCP port,
   HTTPS and a route trace, and names the lowest failing layer in plain language.
 - `New-ItoRandomPassword` generates passwords from the operating system's cryptographic random
@@ -92,8 +101,8 @@ parameter validation and `-WhatIf`/`-Confirm` on everything that changes state):
   Active Directory with `samba-tool` and LDAP, using the same JSON configuration. Accounts are
   created with one atomic `ldbadd`; passwords never appear on a command line.
 - `health-report.sh`: disk, memory, uptime, pending reboot, failed systemd units, critical journal
-  entries, last package update and root filesystem encryption, as text, JSON or HTML, with
-  Nagios-style exit codes.
+  entries, last package upgrade (from the dpkg logs, rotated ones included) and root filesystem
+  encryption, as text, JSON or HTML, with Nagios-style exit codes.
 - `net-check.sh`: the layered network check and diagnosis on Linux.
 - `monitoring.sh`: the Born2beRoot system summary (architecture and kernel, physical and virtual
   CPUs, memory and disk use, CPU load, last boot, LVM, TCP connections, users, IP and MAC, sudo
@@ -137,8 +146,9 @@ flowchart LR
 ```
 
 The PowerShell side and the Bash side are independent implementations of the same rules. They
-share the JSON configuration and a fixture file of account-name test cases
-([tests/fixtures/account-names.csv](tests/fixtures/account-names.csv)) that both test suites run.
+share the JSON configuration and two fixture files that both test suites run: account-name cases
+([tests/fixtures/account-names.csv](tests/fixtures/account-names.csv)) and bad configurations
+([tests/fixtures/invalid-configs.tsv](tests/fixtures/invalid-configs.tsv)).
 
 ## Tech stack and why
 
@@ -148,7 +158,7 @@ share the JSON configuration and a fixture file of account-name test cases
 | Linux automation | Bash, `samba-tool`, ldb tools, `jq` | Available on any Samba administration host; no extra runtime |
 | CSV parsing on Linux | Python 3 standard library (`linux/lib/hrfeed.py`) | Bash has no reliable CSV parser; Python is already required by `samba-tool` |
 | Password delivery | CMS encryption (.NET `EnvelopedCms`, `openssl cms`) | Standard format that `Unprotect-CmsMessage` and `openssl cms` both read; only the certificate holder can decrypt; the password never passes through a command parameter, so module logging cannot record it |
-| Network checks | .NET `System.Net` classes | Same code on Windows and Linux, and testable without Windows-only cmdlets |
+| Network checks | .NET `System.Net` classes | One code path for Windows and Linux, testable without Windows-only cmdlets |
 | Tests | Pester 5, bats-core, a Samba AD DC in Docker | Unit tests with mocks and fakes, plus a real directory for the Bash scripts |
 | Linting | PSScriptAnalyzer, shellcheck, ruff, mypy `--strict`, actionlint | One linter per language, all clean |
 
@@ -157,20 +167,31 @@ share the JSON configuration and a fixture file of account-name test cases
 On Windows (PowerShell 5.1 or 7):
 
 ```powershell
-git clone https://github.com/fasharif/it-ops-toolkit.git
-cd it-ops-toolkit
+git clone https://github.com/fasharif/it-ops-toolkit.git; cd it-ops-toolkit
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 Import-Module .\src\ItOpsToolkit\ItOpsToolkit.psd1
 Test-ItoNetwork
 Get-ItoHealthReport -OutputDirectory $env:TEMP
 ```
+
+The second line matters: Windows blocks unsigned scripts by default (execution policy
+`Restricted` on Windows clients, or `RemoteSigned` for downloaded files), and the module is not
+signed. `-Scope Process` lifts that for this PowerShell window only and changes nothing
+permanently. If you downloaded the ZIP instead of cloning, the same line covers the files'
+"downloaded from the internet" mark; if Group Policy sets the execution policy, ask your
+administrator.
 
 On Linux: `linux/net-check.sh` and `linux/health-report.sh` need no set-up. For onboarding, copy
 `config/onboarding.example.json` to `config/onboarding.json`, edit it for your directory, and
 preview first:
 
 ```powershell
-New-ItoUser -Path .\examples\new-starters.csv -ConfigPath .\config\onboarding.json -WhatIf
+New-ItoUser -Path .\examples\new-starters.csv -ConfigPath .\config\onboarding.json -WhatIf -InformationAction Continue
 ```
+
+`-InformationAction Continue` shows the one-line summary at the end, which PowerShell otherwise
+hides. Write real summaries, audit files and delivery files outside the repository: they hold
+names and employee IDs (`.gitignore` covers the usual names, as a safety net).
 
 ```bash
 linux/onboard-user.sh --csv examples/new-starters.csv --config config/onboarding.json \
@@ -192,6 +213,10 @@ Every command has built-in help: `Get-Help New-ItoUser -Full`, `linux/onboard-us
 | `defaultGroups` | Groups every new starter joins |
 | `departments` | One entry per HR department name (matched without regard to case), each with an `ou` and `groups` |
 
+Setting names, `samAccountNameFormat` and distinguished names are case-sensitive, as in the
+schema: write `OU=Finance,DC=corp,DC=example,DC=com`, not `ou=finance,dc=...`. Both toolkits
+reject anything else with the same message.
+
 **HR feed columns:** `EmployeeId`, `GivenName`, `Surname`, `Department` (required), `Title`,
 `Manager` (the manager's sAMAccountName) and `StartDate` (yyyy-MM-dd) (optional).
 
@@ -203,8 +228,9 @@ $cert = New-SelfSignedCertificate -Subject 'CN=Service Desk Delivery' -Type Docu
 Export-Certificate -Cert $cert -FilePath .\servicedesk.cer
 ```
 
-The holder of the private key reads a delivery file with
-`Unprotect-CmsMessage -Path .\sara.ali.cms`. `onboard-user.sh` takes a PEM certificate
+`-DeliveryCertificate` also takes the certificate's thumbprint, when it is in your personal
+certificate store, or an `X509Certificate2` object. The holder of the private key reads a
+delivery file with `Unprotect-CmsMessage -Path .\sara.ali.cms`. `onboard-user.sh` takes a PEM certificate
 (`--deliver-cert`); the service desk decrypts with
 `openssl cms -decrypt -binary -inform PEM -in sara.ali.cms -inkey key.pem -recip cert.pem`.
 
@@ -221,9 +247,12 @@ domain controller is `--url` or `ITO_LDAP_URL`.
 | Free disk space | below 20% | below 10% |
 | Memory in use | 85% | 95% |
 | Uptime | 14 days | 30 days |
-| Stopped automatic services / failed units | 1 | 5 |
+| Automatic services stopped with an error / failed units | 1 | 5 |
 | Critical events / journal entries (24 h) | 1 | 5 |
-| Days since the last update | 35 | 60 |
+| Days since the last update (Linux: the last package upgrade) | 35 | 60 |
+
+Automatic services that stopped cleanly (exit code 0) are listed for information and not counted,
+and delayed-start services are not counted in the first 10 minutes after boot.
 
 ## Running the tests
 
@@ -235,7 +264,13 @@ Everything runs in containers, so Docker is the only requirement.
 | `scripts/test-bash.sh` | shellcheck, then the bats unit tests in the Debian 13 test image |
 | `scripts/lint-python.sh` | ruff and `mypy --strict` for `linux/lib/hrfeed.py` |
 | `tests/integration/run.sh` | Starts a Samba AD DC and runs onboarding and offboarding against it, then removes it |
-| `powershell -File scripts\Invoke-Tests.ps1 -Stage Test` | The Pester suite in Windows PowerShell 5.1 |
+| `powershell -ExecutionPolicy Bypass -File scripts\Invoke-Tests.ps1 -Stage Test -Install` | The Pester suite in Windows PowerShell 5.1 |
+| `scripts/make-samples.sh` | Regenerates the Linux samples in `docs/samples` |
+
+`-Install` lets `scripts/Invoke-Tests.ps1` download the pinned Pester and PSScriptAnalyzer from
+the PowerShell Gallery, check their SHA-256 hashes and unpack them into `out/modules`. Nothing
+is installed into your PowerShell profile. Without `-Install` it uses copies you already have,
+or stops and says what is missing.
 
 Results of the last full run, on 2026-09-26, from a fresh clone of the branch on a Windows 11
 development machine with Docker Desktop (Linux containers). These are pass/fail results only; no
@@ -263,18 +298,18 @@ and actionlint.
 ├── config/                     onboarding.example.json, its JSON schema, health threshold example
 ├── docs/
 │   ├── kb/                     ten help-desk articles
-│   ├── samples/                real output from the tools
+│   ├── samples/                real output from the tools, and where each file ran
 │   ├── decisions.md            design decisions
 │   └── method.md               troubleshooting method, priority matrix, ticket template
 ├── examples/new-starters.csv   example HR feed
 ├── linux/                      onboard-user.sh, offboard-user.sh, health-report.sh, net-check.sh, monitoring.sh
 │   └── lib/                    shared Bash libraries, config-check.jq, hrfeed.py
-├── scripts/                    test runners (PowerShell, Bash, Python)
+├── scripts/                    test runners (PowerShell, Bash, Python) and make-samples.sh
 ├── src/ItOpsToolkit/           the PowerShell module (Public/ and Private/ functions)
 └── tests/
     ├── bats/                   bats unit tests and fake Samba tools
     ├── docker/Dockerfile       test images: tools, test (bats), dc (Samba AD)
-    ├── fixtures/               account-name cases shared by Pester and bats
+    ├── fixtures/               account-name and bad-configuration cases shared by Pester and bats
     ├── integration/            Samba AD integration tests (compose.yaml, run.sh)
     └── powershell/             Pester tests and ActiveDirectory stubs
 ```
@@ -282,11 +317,13 @@ and actionlint.
 ## Design decisions
 
 The main choices, with their reasons and trade-offs, are in [docs/decisions.md](docs/decisions.md).
-In short: one configuration for both platforms; Pester mocks for the AD module (Samba has no
-ADWS) and a real Samba DC for the Bash scripts; passwords only ever leave the tools encrypted;
-Samba accounts created in one atomic `ldbadd`; `.NET` networking so `Test-ItoNetwork` runs
-everywhere; idempotent onboarding and offboarding; Windows PowerShell 5.1 compatibility tested
-rather than assumed.
+In short: one configuration for both platforms, with the same case-sensitive rules; Pester mocks
+for the AD module (Samba has no ADWS) and a real Samba DC for the Bash scripts; passwords only
+ever leave the tools encrypted, and never pass through a command parameter; Samba accounts
+created in one atomic `ldbadd`; .NET networking, so `Test-ItoNetwork` has one code path for both
+editions and operating systems; idempotent onboarding and offboarding; one domain controller per
+run; accounts created enabled before the start date, with the trade-off explained; Windows
+PowerShell 5.1 compatibility tested rather than assumed.
 
 ## Limitations and roadmap
 
@@ -300,8 +337,18 @@ rather than assumed.
   `New-ItoUser -WhatIf`, `New-ItoUser`, `Remove-ItoUser -WhatIf` and `Remove-ItoUser`, and check
   the results in Active Directory Users and Computers. `Get-ItoLockoutSource` also needs Event
   Log Readers rights on the domain controllers.
-- **The GitHub Actions workflow.** It passes actionlint, and every job runs the same scripts that
-  were run locally, but it has not run on GitHub yet because the repository has not been pushed.
+- **The GitHub Actions workflow.** It passes actionlint and its Linux jobs run the same scripts
+  that were run locally, but it has not run on GitHub yet because the repository has not been
+  pushed. One combination has not run anywhere: the Pester suite under PowerShell 7 on Windows
+  (the second step of the `powershell-windows` job), because this machine has no PowerShell 7.
+  It runs on the first push.
+- **PowerShell module logging.** The tests show that the initial password never passes through
+  a command parameter, using a `ParameterBinding` trace, which sees the same values as module
+  logging (event 4103). Module logging itself was not switched on, because that is a system
+  policy change. To check it: on a test machine, enable module logging for all modules
+  (Group Policy: Windows Components > Windows PowerShell > Turn on Module Logging, module name
+  `*`), run `New-ItoUser` with `-DeliveryPath`, decrypt the delivery file, and search the
+  Microsoft-Windows-PowerShell/Operational log for the password.
 - **Linux checks that need systemd, LVM or LUKS.** In a container there is no systemd, so
   `health-report.sh` reports failed units, the journal and disk encryption as Unknown, and
   `monitoring.sh` shows no LVM. Those paths are covered by bats tests with fake commands. To run
@@ -309,7 +356,8 @@ rather than assumed.
   LVM on LUKS) as root.
 - **The BitLocker check as an administrator.** The Windows sample above ran unelevated, so
   BitLocker shows Unknown ("Access denied"). Run `Get-ItoHealthReport` from an elevated prompt
-  on a Pro or Enterprise edition to see the protection status.
+  to see the protection status (Windows Home has the BitLocker module too, for Device
+  Encryption).
 
 **Limitations:**
 
@@ -319,12 +367,17 @@ rather than assumed.
   Docker's network layer answers ICMP itself.
 - The Bash directory scripts authenticate with an authentication file; Kerberos ticket use is
   not implemented.
+- New accounts are enabled from the moment they are created, usually days before the start
+  date; see [decision 13](docs/decisions.md) for why, and how to keep them disabled until then.
+- A rerun of a feed warns about configured groups an existing account lacks, but does not add
+  them.
 - The Samba test DC stores ACLs in a TDB file so it can run unprivileged; it is a test fixture,
   not a production build.
 
-**Roadmap:** run the AD functions in a Windows Server 2025 lab domain and record the results;
-add Kerberos authentication to the Bash scripts; move to Pester 6; publish the module to the
-PowerShell Gallery.
+**Roadmap:** run the AD functions in a Windows Server 2025 evaluation lab domain (a DC and a
+domain-joined client) and record the transcripts; add a `-Disabled` option that creates accounts
+switched off until the start date; add Kerberos authentication to the Bash scripts; move to
+Pester 6; publish the module to the PowerShell Gallery.
 
 ## A note for IT support roles
 
