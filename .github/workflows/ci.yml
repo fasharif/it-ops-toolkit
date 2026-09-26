@@ -16,6 +16,7 @@ jobs:
   powershell:
     name: PowerShell 7 (PSScriptAnalyzer and Pester, container)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     container: mcr.microsoft.com/powershell:7.5-ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -33,6 +34,7 @@ jobs:
   powershell-windows:
     name: Pester on Windows PowerShell 5.1 and PowerShell 7
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - name: Windows PowerShell 5.1
@@ -52,6 +54,7 @@ jobs:
   bash:
     name: Bash (shellcheck and bats)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - name: Lint and test
@@ -60,6 +63,7 @@ jobs:
   python:
     name: Python helper (ruff and mypy)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - name: Lint and type-check
@@ -68,6 +72,7 @@ jobs:
   integration:
     name: Samba AD integration
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - name: Onboard and offboard against a Samba AD domain controller
@@ -76,6 +81,7 @@ jobs:
   workflows:
     name: Workflow lint (actionlint)
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
       - name: actionlint
