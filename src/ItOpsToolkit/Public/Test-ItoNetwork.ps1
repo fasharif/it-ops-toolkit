@@ -20,8 +20,9 @@ function Test-ItoNetwork {
         The diagnosis names the lowest layer that failed and says what to do next. The
         command only reads; it changes no settings.
 
-        It uses .NET networking classes, so it works in Windows PowerShell 5.1 and in PowerShell 7
-        on Windows, Linux and macOS.
+        It uses .NET networking classes rather than Windows-only cmdlets. It has been run in
+        Windows PowerShell 5.1 on Windows 11 and in PowerShell 7.5 on Linux (see docs/samples).
+        PowerShell 7 on Windows and macOS have not been tried yet.
 
     .PARAMETER ComputerName
         Host name or IP address to test. The default is www.microsoft.com.

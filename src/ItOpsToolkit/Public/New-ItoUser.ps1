@@ -32,6 +32,10 @@ function New-ItoUser {
         Rows with problems do not stop the batch: each row gets a result with a Status of
         Created, Exists, Planned (with -WhatIf), Invalid or Failed.
 
+        At the end, a one-line count ("Onboarding summary: 3 created, 1 invalid.") goes to the
+        information stream, which PowerShell hides by default. Add -InformationAction Continue to
+        see it, or use -SummaryPath for the full summary as a CSV file.
+
     .PARAMETER Path
         Path to the HR feed CSV file (UTF-8, comma-separated, with a header row).
 
@@ -74,10 +78,12 @@ function New-ItoUser {
     .EXAMPLE
         $results = New-ItoUser -Path .\new-starters.csv -ConfigPath .\onboarding.json `
             -DeliveryPath \\fs01\ServiceDesk\Delivery -DeliveryCertificate .\servicedesk.cer `
-            -SummaryPath .\onboarding-2026-09-28.csv
+            -SummaryPath \\fs01\ServiceDesk\Onboarding\onboarding-2026-09-28.csv -InformationAction Continue
         $results | Format-Table Row, SamAccountName, Status, Message
 
-        Creates the accounts, writes one encrypted delivery file per account and a summary CSV.
+        Creates the accounts, writes one encrypted delivery file per account and a summary CSV to
+        the service desk share, and shows the one-line summary. The summary holds names and
+        employee IDs, so keep it out of source control and other shared folders.
 
     .EXAMPLE
         Unprotect-CmsMessage -Path \\fs01\ServiceDesk\Delivery\sara.ali.cms

@@ -52,7 +52,7 @@ function Remove-ItoUser {
         Credential for the directory operations. Defaults to the current user.
 
     .EXAMPLE
-        Remove-ItoUser -Identity 'omar.haddad' -TicketNumber 'INC0012345' -ConfigPath .\onboarding.json -AuditPath .\audit -WhatIf
+        Remove-ItoUser -Identity 'omar.haddad' -TicketNumber 'INC0012345' -ConfigPath .\onboarding.json -AuditPath \\fs01\Audit -WhatIf
 
         Lists every change that would be made, without making any.
 
