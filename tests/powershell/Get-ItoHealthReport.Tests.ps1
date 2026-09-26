@@ -281,6 +281,17 @@ Describe 'Get-ItoHealthReport' {
             $html | Should -Not -Match 'src=|href='
         }
 
+        It 'shows in the HTML which stopped services count and which are for information' {
+            Mock -ModuleName ItOpsToolkit Get-ItoStoppedServiceData {
+                [pscustomobject]@{ Name = 'Spooler'; DisplayName = 'Print Spooler'; State = 'Stopped'; DelayedAutoStart = $false; TriggerStart = $false; ExitCode = 1067 }
+                [pscustomobject]@{ Name = 'VendorUpdater'; DisplayName = 'Vendor updater'; State = 'Stopped'; DelayedAutoStart = $false; TriggerStart = $false; ExitCode = 0 }
+            }
+            $report = Get-ItoHealthReport -OutputDirectory $script:outDir
+            $html = Get-Content -LiteralPath $report.HtmlPath -Raw
+            $html | Should -Match '<td>Spooler</td><td>Print Spooler</td><td>Stopped</td><td>1067</td><td>Yes: stopped with an error or never started</td>'
+            $html | Should -Match '<td>VendorUpdater</td><td>Vendor updater</td><td>Stopped</td><td>0</td><td>No: stopped cleanly, for information</td>'
+        }
+
         It 'writes no files with -WhatIf' {
             $report = Get-ItoHealthReport -OutputDirectory $script:outDir -WhatIf
             $report.JsonPath | Should -BeNullOrEmpty

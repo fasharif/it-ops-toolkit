@@ -93,11 +93,17 @@ footer { margin-top: 2rem; color: #57606a; font-size: 0.85rem; }
     if ($serviceCheck.Count -gt 0 -and $null -ne $serviceCheck[0].Data -and @($serviceCheck[0].Data).Count -gt 0) {
         [void]$builder.AppendLine('<h2>Stopped automatic services</h2>')
         [void]$builder.AppendLine('<table>')
-        [void]$builder.AppendLine('<thead><tr><th scope="col">Name</th><th scope="col">Display name</th><th scope="col">State</th><th scope="col">Exit code</th></tr></thead>')
+        [void]$builder.AppendLine('<thead><tr><th scope="col">Name</th><th scope="col">Display name</th><th scope="col">State</th><th scope="col">Exit code</th><th scope="col">Counted</th></tr></thead>')
         [void]$builder.AppendLine('<tbody>')
+        $counted = @{
+            Failed              = 'Yes: stopped with an error or never started'
+            StoppedCleanly      = 'No: stopped cleanly, for information'
+            DelayedStartPending = 'Not yet: delayed start, soon after boot'
+        }
         foreach ($service in @($serviceCheck[0].Data)) {
-            [void]$builder.AppendLine(('<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td></tr>' -f
-                    (ConvertTo-ItoHtmlText $service.Name), (ConvertTo-ItoHtmlText $service.DisplayName), (ConvertTo-ItoHtmlText $service.State), (ConvertTo-ItoHtmlText $service.ExitCode)))
+            [void]$builder.AppendLine(('<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td><td>{4}</td></tr>' -f
+                    (ConvertTo-ItoHtmlText $service.Name), (ConvertTo-ItoHtmlText $service.DisplayName), (ConvertTo-ItoHtmlText $service.State),
+                    (ConvertTo-ItoHtmlText $service.ExitCode), (ConvertTo-ItoHtmlText $counted[[string]$service.Reason])))
         }
         [void]$builder.AppendLine('</tbody>')
         [void]$builder.AppendLine('</table>')
