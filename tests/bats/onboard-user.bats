@@ -194,13 +194,28 @@ password_in_ldif() {
 }
 
 @test 'skips a new starter who already has an account' {
-    printf 'dn: CN=Sara Ali,OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test\nsAMAccountName: sara.ali\n' |
+    printf 'dn: CN=Sara Ali,OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test\nsAMAccountName: sara.ali\nmemberOf: CN=All-Staff,CN=Users,DC=corp,DC=itops,DC=test\nmemberOf: CN=Finance-Users,CN=Users,DC=corp,DC=itops,DC=test\n' |
         ldb_respond sub '(&(objectClass=user)(employeeID=E1))'
     feed 'E1,Sara,Ali,Finance,,,'
     run onboard
     assert_success
     assert_line --regexp '^1 +sara\.ali +Exists +An account with employee ID E1 already exists \(sara\.ali\)\. No changes were made\.$'
+    refute_output --partial 'Warning:'
     assert_equal "$(calls_to ldbadd)" ''
+}
+
+@test 'warns, without changing anything, when an existing account lacks configured groups' {
+    printf 'dn: CN=Sara Ali,OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test\nsAMAccountName: sara.ali\nmemberOf: CN=ALL-STAFF,CN=Users,DC=corp,DC=itops,DC=test\n' |
+        ldb_respond sub '(&(objectClass=user)(employeeID=E1))'
+    feed 'E1,Sara,Ali,Finance,,,'
+    run onboard --summary "$BATS_TEST_TMPDIR/summary.csv"
+    assert_success
+    assert_line --regexp '^1 +sara\.ali +Exists '
+    assert_line --regexp "^ +Warning: The existing account is not in the configured group 'Finance-Users'\. Check that the person still needs it, then add it by hand\.$"
+    refute_output --partial "group 'All-Staff'"
+    assert_equal "$(calls_to samba-tool)" ''
+    run grep -c "not in the configured group 'Finance-Users'" "$BATS_TEST_TMPDIR/summary.csv"
+    assert_output 1
 }
 
 @test 'picks the next free account name when names are taken' {

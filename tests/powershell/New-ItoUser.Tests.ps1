@@ -23,14 +23,18 @@ Describe 'New-ItoUser' {
         $script:takenEmployeeIds = @()
         $script:sameNameInOu = @()
         $script:managers = @('lina.haddad')
+        $script:existingMemberOf = @('All-Staff', 'Finance-Users', 'Finance-Share-RW') | ForEach-Object { "CN=$_,OU=Groups,DC=corp,DC=itops,DC=test" }
 
         Mock -ModuleName ItOpsToolkit Get-ADDomainController { [pscustomobject]@{ HostName = @('dc7.corp.itops.test') } }
         Mock -ModuleName ItOpsToolkit Get-ADOrganizationalUnit { [pscustomobject]@{ DistinguishedName = $Identity } }
-        Mock -ModuleName ItOpsToolkit Get-ADGroup { [pscustomobject]@{ Name = 'group' } }
+        Mock -ModuleName ItOpsToolkit Get-ADGroup {
+            $name = $LDAPFilter -replace '^\(sAMAccountName=(.+)\)$', '$1'
+            [pscustomobject]@{ Name = $name; DistinguishedName = "CN=$name,OU=Groups,DC=corp,DC=itops,DC=test" }
+        }
         Mock -ModuleName ItOpsToolkit Add-ADGroupMember { }
         Mock -ModuleName ItOpsToolkit Get-ADUser {
             if ($LDAPFilter -match '^\(employeeID=(.+)\)$') {
-                if ($script:takenEmployeeIds -contains $Matches[1]) { return New-TestAdUser -SamAccountName 'existing.user' }
+                if ($script:takenEmployeeIds -contains $Matches[1]) { return New-TestAdUser -SamAccountName 'existing.user' -MemberOf $script:existingMemberOf }
                 return
             }
             if ($LDAPFilter -match '^\(sAMAccountName=(.+)\)$') {
@@ -224,7 +228,25 @@ Describe 'New-ItoUser' {
             $result = New-ItoUser -Path $feed -ConfigPath $script:configPath -Confirm:$false
             $result.Status | Should -Be 'Exists'
             $result.SamAccountName | Should -Be 'existing.user'
+            $result.Warnings | Should -BeNullOrEmpty
             Should -Invoke -ModuleName ItOpsToolkit New-ADUser -Times 0 -Exactly
+        }
+
+        It 'warns, without changing anything, when an existing account lacks configured groups' {
+            $script:takenEmployeeIds = @('E1')
+            $script:existingMemberOf = @('CN=ALL-STAFF,OU=Groups,DC=corp,DC=itops,DC=test', 'CN=Old-Team,OU=Groups,DC=corp,DC=itops,DC=test')
+            $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
+            $warnings = $null
+            $result = New-ItoUser -Path $feed -ConfigPath $script:configPath -Confirm:$false -WarningVariable warnings -WarningAction SilentlyContinue
+
+            $result.Status | Should -Be 'Exists'
+            $result.Warnings | Should -Be @(
+                "The existing account is not in the configured group 'Finance-Users'. Check that the person still needs it, then add it by hand."
+                "The existing account is not in the configured group 'Finance-Share-RW'. Check that the person still needs it, then add it by hand."
+            )
+            @($warnings).Count | Should -Be 2
+            "$($warnings[0])" | Should -BeLike 'Row 1 (existing.user): The existing account is not in the configured group*'
+            Should -Invoke -ModuleName ItOpsToolkit Add-ADGroupMember -Times 0 -Exactly
         }
 
         It 'fails only the rows whose OU is missing' {

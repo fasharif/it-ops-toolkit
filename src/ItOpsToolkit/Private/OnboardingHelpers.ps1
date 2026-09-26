@@ -87,3 +87,51 @@ function Get-ItoOnboardingTargetProblem {
     }
     return $null
 }
+
+function Get-ItoMissingGroup {
+    <#
+    .SYNOPSIS
+        Lists the configured groups that an existing account is not a member of.
+    .DESCRIPTION
+        Group names are resolved to distinguished names once per run (cached) and compared with
+        the account's memberOf values. Groups that do not exist in the directory are left out.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
+        [AllowNull()]
+        [string[]] $MemberOf,
+
+        [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
+        [string[]] $Groups,
+
+        [Parameter(Mandatory)]
+        [hashtable] $Cache,
+
+        [hashtable] $AdParameters = @{}
+    )
+
+    $current = @($MemberOf | Where-Object { $_ })
+    foreach ($group in $Groups) {
+        $key = 'dn:' + $group
+        if (-not $Cache.ContainsKey($key)) {
+            $filter = '(sAMAccountName={0})' -f (ConvertTo-ItoLdapFilterValue -Value $group)
+            $found = @(Get-ADGroup -LDAPFilter $filter @AdParameters)
+            $Cache[$key] = $null
+            if ($found.Count -gt 0) {
+                $Cache[$key] = [string]$found[0].DistinguishedName
+            }
+        }
+        $groupDn = $Cache[$key]
+        if ([string]::IsNullOrEmpty($groupDn)) {
+            continue
+        }
+        $isMember = @($current | Where-Object { [string]::Equals($_, $groupDn, [System.StringComparison]::OrdinalIgnoreCase) }).Count -gt 0
+        if (-not $isMember) {
+            $group
+        }
+    }
+}

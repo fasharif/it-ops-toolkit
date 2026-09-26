@@ -18,7 +18,8 @@ usage() {
 Usage: onboard-user.sh --csv FILE --config FILE [options]
 
 Creates a Samba Active Directory account for each valid row of an HR feed:
-  - skips rows whose employee ID already has an account, so the feed can be run again;
+  - skips rows whose employee ID already has an account, so the feed can be run again, and
+    warns when that account is not in all the configured groups (it does not add them);
   - checks that the department's OU and groups exist before creating anything;
   - generates a unique account name (first.last or flast, at most 20 characters);
   - creates the account enabled, in the department's OU, with a random initial password
@@ -185,19 +186,48 @@ ou_exists() {
     [[ ${OU_CACHE[$key]} == yes ]]
 }
 
-# group_exists NAME: true when a group with that sAMAccountName exists. Results are cached.
+# lookup_group NAME: sets GROUP_DN to the DN of the group with that sAMAccountName, or to ''
+# when there is none. Results are cached. It sets a variable rather than printing, because a
+# $(...) subshell would lose the cache.
 declare -A GROUP_CACHE=()
-group_exists() {
-    local key=${1,,}
+GROUP_DN=''
+lookup_group() {
+    local key=${1,,} found
     if [[ -z ${GROUP_CACHE[$key]+set} ]]; then
-        if ldap_search "$BASE_DN" sub "(&(objectClass=group)(sAMAccountName=$(ldap_filter_escape "$1")))" dn 2>"$ERR_FILE" |
-            ldif_has_entry; then
-            GROUP_CACHE[$key]=yes
-        else
-            GROUP_CACHE[$key]=no
-        fi
+        found=$(ldap_search "$BASE_DN" sub "(&(objectClass=group)(sAMAccountName=$(ldap_filter_escape "$1")))" dn 2>"$ERR_FILE" |
+            ldif_values dn | sed -n '1p') || found=''
+        GROUP_CACHE[$key]=$found
     fi
-    [[ ${GROUP_CACHE[$key]} == yes ]]
+    GROUP_DN=${GROUP_CACHE[$key]}
+}
+
+# group_exists NAME: true when a group with that sAMAccountName exists.
+group_exists() {
+    lookup_group "$1"
+    [[ -n $GROUP_DN ]]
+}
+
+# missing_groups_warning MEMBER_OF_DN...: sets MISSING_GROUPS to a warning about each configured
+# group (in $groups) that an existing account is not a member of, or to ''. Like lookup_group,
+# it must run in this shell, not in $(...), so the group cache is kept.
+MISSING_GROUPS=''
+missing_groups_warning() {
+    local group member found text=''
+    for group in "${groups[@]}"; do
+        lookup_group "$group"
+        [[ -n $GROUP_DN ]] || continue
+        found=false
+        for member in "$@"; do
+            if [[ ${member,,} == "${GROUP_DN,,}" ]]; then
+                found=true
+                break
+            fi
+        done
+        if [[ $found == false ]]; then
+            text+="${text:+ }The existing account is not in the configured group '$group'. Check that the person still needs it, then add it by hand."
+        fi
+    done
+    MISSING_GROUPS=$text
 }
 
 # name_taken NAME: true when an account already uses NAME as sAMAccountName or UPN prefix.
@@ -280,14 +310,19 @@ while IFS="$ITO_US" read -r -u 3 row employee_id given surname department title 
     mapfile -t groups < <(config_groups "$CONFIG_FILE" "$department")
     group_list=$(IFS=';'; printf '%s' "${groups[*]}")
 
-    existing=$(ldap_search "$BASE_DN" sub "(&(objectClass=user)(employeeID=$(ldap_filter_escape "$employee_id")))" sAMAccountName 2>"$ERR_FILE" |
-        ldif_values sAMAccountName | sed -n '1p') || {
+    existing_entry=$(ldap_search "$BASE_DN" sub "(&(objectClass=user)(employeeID=$(ldap_filter_escape "$employee_id")))" \
+        sAMAccountName memberOf 2>"$ERR_FILE") || {
         report "$row" "$employee_id" "$display" '' '' "$department" "$ou" "$group_list" Failed "Directory search failed: $(last_error)" '' ''
         continue
     }
+    existing=$(ldif_values sAMAccountName <<<"$existing_entry" | sed -n '1p')
     if [[ -n $existing ]]; then
+        # Report, but do not add, configured groups the account lacks: an earlier group add may
+        # have failed, or the person may have moved department since.
+        mapfile -t member_of < <(ldif_values memberOf <<<"$existing_entry")
+        missing_groups_warning "${member_of[@]}"
         report "$row" "$employee_id" "$display" "$existing" "$existing@$UPN_SUFFIX" "$department" "$ou" "$group_list" Exists \
-            "An account with employee ID $employee_id already exists ($existing). No changes were made." '' ''
+            "An account with employee ID $employee_id already exists ($existing). No changes were made." "$MISSING_GROUPS" ''
         continue
     fi
 

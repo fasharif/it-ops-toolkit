@@ -8,7 +8,9 @@ function New-ItoUser {
 
         1. Validates the row: required fields, allowed characters, a known department and the date format.
         2. Skips the row when an account with the same employeeID already exists, so the same
-           feed can be run again safely.
+           feed can be run again safely. If that account is not in all the configured groups
+           (for example because a group add failed on the first run), the result has a warning
+           for each missing group; the groups are not added automatically.
         3. Checks that the department's OU and groups exist before creating anything.
         4. Generates a unique sAMAccountName (first.last or flast, at most 20 characters). When a
            name is taken, a number is appended: sara.ali, sara.ali2, sara.ali3.
@@ -204,13 +206,20 @@ function New-ItoUser {
 
             try {
                 $idFilter = '(employeeID={0})' -f (ConvertTo-ItoLdapFilterValue -Value $row.EmployeeId)
-                $existing = @(Get-ADUser -LDAPFilter $idFilter -Properties 'employeeID' @adParameters)
+                $existing = @(Get-ADUser -LDAPFilter $idFilter -Properties 'employeeID', 'MemberOf' @adParameters)
                 if ($existing.Count -gt 0) {
                     $result.Status = 'Exists'
                     $result.SamAccountName = $existing[0].SamAccountName
                     $result.UserPrincipalName = $existing[0].UserPrincipalName
                     $result.Message = "An account with employee ID $($row.EmployeeId) already exists ($($existing[0].SamAccountName)). No changes were made."
                     Write-Verbose $result.Message
+                    # Report, but do not add, configured groups the account lacks: an earlier group
+                    # add may have failed, or the person may have moved department since.
+                    foreach ($group in @(Get-ItoMissingGroup -MemberOf @($existing[0].MemberOf) -Groups $groups -Cache $targetCache -AdParameters $adParameters)) {
+                        $warnings.Add("The existing account is not in the configured group '$group'. Check that the person still needs it, then add it by hand.")
+                        Write-Warning ('Row {0} ({1}): {2}' -f $rowNumber, $result.SamAccountName, $warnings[$warnings.Count - 1])
+                    }
+                    $result.Warnings = $warnings.ToArray()
                     $results.Add($result)
                     $result
                     continue
