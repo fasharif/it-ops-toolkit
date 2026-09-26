@@ -11,10 +11,15 @@ with the Bash scripts against Samba. Two department mappings would drift apart.
 **Decision.** `New-ItoUser`, `Remove-ItoUser`, `onboard-user.sh` and `offboard-user.sh` read the
 same JSON file (`config/onboarding.example.json`, described by `config/onboarding.schema.json`).
 Both sides validate it with the same rules and reject unknown settings, so a typo such as
-`departmens` fails loudly instead of being ignored.
+`departmens` fails loudly instead of being ignored. Like the JSON schema, the rules are
+case-sensitive: setting names, `samAccountNameFormat` and the `OU=`, `CN=` and `DC=` parts of
+distinguished names must be written as documented. HR department names in the feed are matched
+without regard to case.
 
 **Consequences.** The Bash scripts need `jq`. Validation logic exists twice (PowerShell and a jq
-program), so tests on both sides check the same error cases.
+program), so both test suites run the same bad configurations from
+`tests/fixtures/invalid-configs.tsv`. PowerShell ignores case by default, so the PowerShell side
+has to use case-sensitive operators and hashtables on purpose.
 
 ## 2. Mocked Active Directory for the PowerShell module, a real Samba DC for the Bash scripts
 
@@ -92,9 +97,10 @@ hard to test.
 `Ping`, `HttpWebRequest`) behind small private wrappers. The diagnosis is a separate pure
 function that turns layer results into advice.
 
-**Consequences.** The same code runs in Windows PowerShell 5.1 and PowerShell 7 on Windows and
-Linux. The wrappers are mocked for the diagnosis tests and exercised for real against local
-sockets. `HttpWebRequest` is marked obsolete in .NET, but it is the one HTTP API present in both
+**Consequences.** One code path serves both editions and both operating systems. It has run for
+real in Windows PowerShell 5.1 on Windows 11 and in PowerShell 7.5 on Linux (`docs/samples`);
+PowerShell 7 on Windows and macOS have not been tried yet. The wrappers are mocked for the
+diagnosis tests and exercised for real against local sockets. `HttpWebRequest` is marked obsolete in .NET, but it is the one HTTP API present in both
 editions.
 
 ## 7. A small Python helper for CSV parsing
@@ -106,8 +112,9 @@ order mark. Bash has no reliable CSV parser.
 with the same rules as the PowerShell module, and normalises names the same way: Latin letters
 that have no Unicode decomposition are spelled in ASCII first (ß as ss, ø as o, ł as l, þ as th
 and so on), then `unicodedata` decomposes the rest (NFKD) and only ASCII letters and digits are
-kept. Python 3 is already a hard dependency of `samba-tool`. The helper
-is type-checked with `mypy --strict` and linted with ruff.
+kept. Python 3 is already a hard dependency of `samba-tool`. The helper is type-checked with
+`mypy --strict` and linted with ruff, and `onboard-user.sh` runs it in isolated mode
+(`python3 -I`), so nothing next to it can shadow a standard library module.
 
 **Consequences.** One Python file in a Bash toolkit. Its output uses the ASCII unit separator
 because `read` collapses runs of tabs and would lose empty fields.
@@ -140,8 +147,10 @@ Pester suite runs under Windows PowerShell 5.1 as well as PowerShell 7. The newe
 container, so the lighter cmdlet check against the 5.1 profile is used instead.
 
 **Consequences.** Some code is longer than PowerShell 7 would allow (for example the JSON
-conversion helper). Two tests only run on PowerShell 7 (JSON schema validation with `Test-Json`,
-and the openssl interoperability check) and are skipped on 5.1.
+conversion helper). Three tests are skipped on Windows PowerShell 5.1: JSON schema validation
+with `Test-Json` and the openssl interoperability check need PowerShell 7, and the certificate
+store lookup test only runs on Linux, where the CurrentUser store is a folder in a throwaway
+home directory rather than the real Windows store.
 
 ## 10. Exit codes that monitoring systems understand
 
@@ -158,23 +167,65 @@ report says why for each one.
 
 **Context.** Reproducible tests need fixed tool versions.
 
-**Decision.** Pester 5.9.1 and PSScriptAnalyzer 1.25.0 are pinned in `scripts/Invoke-Tests.ps1`,
-bats-core 1.14.0 and its libraries are pinned by tag and SHA-256 in `tests/docker/Dockerfile`,
-ruff and mypy are pinned with hashes in `requirements-dev.txt`, and container images use explicit
-tags. Dependabot updates GitHub Actions, the Dockerfile base image and the Python tools. The
-Pester, PSScriptAnalyzer and bats versions, and the image tags in scripts, are updated by hand.
-Pester 6 exists; staying on Pester 5 was a stated requirement.
+**Decision.** Pester 5.9.1 and PSScriptAnalyzer 1.25.0 are pinned in `scripts/Invoke-Tests.ps1`
+with the SHA-256 of their packages; with `-Install` the runner downloads them from the PowerShell
+Gallery, checks the hash and unpacks them into `out/modules`, so nothing is installed into the
+user's profile. bats-core 1.14.0 and its libraries are pinned by tag and SHA-256 in
+`tests/docker/Dockerfile`, the Debian base image is pinned by digest, ruff and mypy are pinned
+with hashes in `requirements-dev.txt`, and other container images use explicit tags. The Samba
+packages come from Debian 13 when the image is built, so `tests/integration/run.sh` prints the
+Samba version each run tested. Dependabot updates GitHub Actions, the Dockerfile base image and
+the Python tools. The Pester, PSScriptAnalyzer and bats versions, and the image tags in scripts,
+are updated by hand. Pester 6 exists; staying on Pester 5 was a stated requirement.
 
-**Consequences.** Some updates need a person to check release notes, which is intended.
+**Consequences.** Some updates need a person to check release notes, which is intended. An
+earlier version of the runner installed missing modules into the user's profile, and did so on
+the development machine once; that is why it now stops unless `-Install` is given.
 
 ## 12. Real sample output, with host details removed
 
 **Context.** The README should show real output, but a real health report lists software
 installed on the machine it ran on.
 
-**Decision.** `docs/samples` holds output from real runs. For the Windows health report, the
-computer name and the names of three third-party services were replaced with marked
-placeholders before publishing; nothing else was edited. Samples from containers contain nothing
-personal and are unchanged apart from temporary paths.
+**Decision.** `docs/samples` holds output from real runs, and each file says where it ran.
+`scripts/make-samples.sh` regenerates every Linux sample in the test containers, including
+onboarding and offboarding against the throwaway Samba domain with exactly the commands shown.
+The Windows samples are recorded by hand with the commands listed in `docs/samples/README.md`.
+For the Windows health report, the computer name and the names of three third-party services
+were replaced with marked placeholders before publishing; nothing else was edited.
 
-**Consequences.** The samples show what the tools print, and say exactly what was removed.
+**Consequences.** The samples show what the tools print, where, and exactly what was removed. A
+sample from a container shows container facts (a WSL 2 kernel, no systemd, no LVM), and says so
+rather than posing as a server.
+
+## 13. New accounts are enabled when they are created, before the start date
+
+**Context.** The new starter checklist (KB 10) asks for accounts about five working days before
+the start date, so group memberships, mailboxes and licences are ready on day one. An enabled
+account that exists days before its owner arrives is a small risk.
+
+**Decision.** Both toolkits create the account enabled, with a random initial password that only
+the holder of the delivery certificate can read, and "must change password at next logon" set.
+The start date goes into the description. There is no option to create the account disabled
+until the start date.
+
+**Consequences.** Before day one, nobody but the service desk can sign in, because nobody else
+has the password, and the first sign-in forces a new one. Organisations that want the account
+switched off until the start date can disable it after onboarding (`Disable-ADAccount`,
+`samba-tool user disable`) and enable it on the day; a `-Disabled` option that does this in one
+step is on the roadmap.
+
+## 14. One domain controller for a whole run
+
+**Context.** Without `-Server`, each ActiveDirectory cmdlet finds its own domain controller. In a
+domain with several, a group change right after `New-ADUser` can reach a domain controller that
+has not received the new account yet.
+
+**Decision.** `New-ItoUser` and `Remove-ItoUser` find one writable domain controller that runs
+Active Directory Web Services at the start (`Get-ADDomainController -Discover -Writable
+-Service ADWS`) and use it for every call; `-Server` overrides it. The Bash scripts already use
+the one domain controller named by `--url`.
+
+**Consequences.** A run fails at the start, before any change, when no domain controller can be
+found. A rerun of a feed reports configured groups that an existing account lacks, rather than
+adding them, because the person may have changed department since.
