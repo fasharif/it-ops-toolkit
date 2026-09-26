@@ -55,12 +55,15 @@ is not automatically high priority; the effect on the business is what counts.
 
 - **High:** a whole site or department, or a business-critical service (payments, payroll,
   customer-facing systems).
-- **Medium:** a team, or several users, or a single user whose role is time-critical today.
+- **Medium:** a team, or several users.
 - **Low:** one user, or a non-critical service.
+
+Impact is about how many people and which services are affected, not about deadlines: a
+deadline makes a ticket urgent, which is the other axis.
 
 **Urgency**
 
-- **High:** work has stopped and there is no workaround.
+- **High:** work has stopped and there is no workaround, or a deadline is today.
 - **Medium:** work is degraded, or a workaround exists but is costly.
 - **Low:** inconvenience; a workaround exists, or the need is weeks away.
 
@@ -122,7 +125,7 @@ Summary:            Remote user cannot open the finance share
 Reported by:        Sara Ali, Finance, ext. 4127 (called back on the number in the directory)
 Reported at:        2026-09-28 09:12
 Affected:           1 user, laptop PC-0142          Location: home
-Impact / Urgency:   low / high (month-end close today, no workaround)   Priority: P3
+Impact / Urgency:   low / high (one user; month-end close today, no workaround)   Priority: P3
 Category:           network
 
 Description:        \\fileserver.corp.itops.test\finance shows "Windows can't find
@@ -131,7 +134,7 @@ What changed:       Worked from home today; in the office yesterday. Password un
 Steps to reproduce: 1. Connect to home Wi-Fi. 2. Open File Explorer. 3. Open the finance share.
 
 Troubleshooting (layer by layer, with results):
-  1. Get-ItoHealthReport: overall OK apart from one stopped updater service. Device not the cause.
+  1. Get-ItoHealthReport: overall OK (disk, memory, services, updates). Device not the cause.
   2. Test-ItoNetwork (internet): IP, gateway, DNS, TCP 443 and HTTPS all pass.
   3. Test-ItoNetwork -ComputerName fileserver.corp.itops.test -Port 445 -SkipTrace:
        DNS works, but the name 'fileserver.corp.itops.test' does not resolve. Check the
@@ -149,3 +152,8 @@ Prevention:         Reported the start-up failure to the endpoint team (problem 
 Knowledge article:  docs/kb/04-vpn-fails.md, docs/kb/09-dns-resolution-failures.md
 Time spent:         19 minutes
 ```
+
+Why P3: one user is affected, so the impact is low; month-end close is today and there is no
+workaround, so the urgency is high. Low impact and high urgency give P3 in the matrix. Had the
+whole finance team been unable to reach the share, the impact would have been medium and the
+ticket P2.
