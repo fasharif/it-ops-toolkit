@@ -174,29 +174,29 @@ Test-ItoNetwork
 Get-ItoHealthReport -OutputDirectory $env:TEMP
 ```
 
-The second line matters: Windows blocks unsigned scripts by default (execution policy
-`Restricted` on Windows clients, or `RemoteSigned` for downloaded files), and the module is not
-signed. `-Scope Process` lifts that for this PowerShell window only and changes nothing
-permanently. If you downloaded the ZIP instead of cloning, the same line covers the files'
-"downloaded from the internet" mark; if Group Policy sets the execution policy, ask your
-administrator.
+The second line matters. Windows PowerShell blocks unsigned scripts by default: the default
+execution policy on Windows clients is `Restricted`, `RemoteSigned` blocks files it treats as
+downloaded, and the module is not signed. `-Scope Process` lifts the block for this PowerShell
+window only and changes nothing permanently; it also covers a ZIP download's "downloaded from
+the internet" mark. If Group Policy sets the execution policy, ask your administrator.
 
-On Linux: `linux/net-check.sh` and `linux/health-report.sh` need no set-up. For onboarding, copy
-`config/onboarding.example.json` to `config/onboarding.json`, edit it for your directory, and
-preview first:
+On Linux, `linux/net-check.sh` and `linux/health-report.sh` need no set-up.
+
+For onboarding on either platform, copy `config/onboarding.example.json` to
+`config/onboarding.json`, edit it for your directory, and preview first:
 
 ```powershell
 New-ItoUser -Path .\examples\new-starters.csv -ConfigPath .\config\onboarding.json -WhatIf -InformationAction Continue
 ```
 
-`-InformationAction Continue` shows the one-line summary at the end, which PowerShell otherwise
-hides. Write real summaries, audit files and delivery files outside the repository: they hold
-names and employee IDs (`.gitignore` covers the usual names, as a safety net).
-
 ```bash
 linux/onboard-user.sh --csv examples/new-starters.csv --config config/onboarding.json \
     --url ldap://dc1.corp.example.com --auth-file ~/.config/it-ops/admin.auth --dry-run
 ```
+
+`-InformationAction Continue` shows the one-line summary at the end, which PowerShell otherwise
+hides. Write real summaries, audit files and delivery files outside the repository: they hold
+names and employee IDs (`.gitignore` covers the usual names, as a safety net).
 
 Every command has built-in help: `Get-Help New-ItoUser -Full`, `linux/onboard-user.sh --help`.
 
@@ -230,8 +230,8 @@ Export-Certificate -Cert $cert -FilePath .\servicedesk.cer
 
 `-DeliveryCertificate` also takes the certificate's thumbprint, when it is in your personal
 certificate store, or an `X509Certificate2` object. The holder of the private key reads a
-delivery file with `Unprotect-CmsMessage -Path .\sara.ali.cms`. `onboard-user.sh` takes a PEM certificate
-(`--deliver-cert`); the service desk decrypts with
+delivery file with `Unprotect-CmsMessage -Path .\sara.ali.cms`. `onboard-user.sh` takes a PEM
+certificate (`--deliver-cert`); the service desk decrypts with
 `openssl cms -decrypt -binary -inform PEM -in sara.ali.cms -inkey key.pem -recip cert.pem`.
 
 **Samba credentials** for the Bash scripts are read from a Samba authentication file (lines
@@ -270,7 +270,8 @@ Everything runs in containers, so Docker is the only requirement.
 `-Install` lets `scripts/Invoke-Tests.ps1` download the pinned Pester and PSScriptAnalyzer from
 the PowerShell Gallery, check their SHA-256 hashes and unpack them into `out/modules`. Nothing
 is installed into your PowerShell profile. Without `-Install` it uses copies you already have,
-or stops and says what is missing.
+or stops and says what is missing. In Windows PowerShell 5.1, keep the clone's path short:
+.NET Framework cannot load Pester's DLL from a path longer than 260 characters.
 
 Results of the last full run, on 2026-09-26, from a fresh clone of the branch on a Windows 11
 development machine with Docker Desktop (Linux containers). These are pass/fail results only; no
@@ -279,17 +280,20 @@ timings are published.
 | Check | Environment | Command | Result |
 | --- | --- | --- | --- |
 | PSScriptAnalyzer 1.25.0 | PowerShell 7.5.0, `mcr.microsoft.com/powershell:7.5-ubuntu-24.04` | `scripts/test-powershell.sh` | No findings |
-| Pester 5.9.1 | Same container | `scripts/test-powershell.sh` | 177 passed, 0 failed; 86.5% line coverage of `src/ItOpsToolkit` |
-| Pester 5.9.1 | Windows PowerShell 5.1.26100, Windows 11, .NET Framework 4.8 | `powershell -File scripts\Invoke-Tests.ps1 -Stage Test` | 175 passed, 0 failed, 2 skipped (PowerShell 7-only tests); 86.5% line coverage |
+| Pester 5.9.1 | Same container | `scripts/test-powershell.sh` | 203 passed, 0 failed, 0 skipped; command coverage of `src/ItOpsToolkit` 87.7% (1648 of 1880 commands) |
+| Pester 5.9.1 | Windows PowerShell 5.1.26100, Windows 11, .NET Framework 4.8 | `powershell -ExecutionPolicy Bypass -File scripts\Invoke-Tests.ps1 -Stage Test -MinimumCoverage 80`, with the pinned Pester already on `PSModulePath` | 200 passed, 0 failed, 3 skipped (see [decision 9](docs/decisions.md)); command coverage 87.3% (1642 of 1880 commands) |
 | shellcheck 0.11.0 | `koalaman/shellcheck:v0.11.0` | `scripts/test-bash.sh` | No findings |
-| bats-core 1.14.0 | Debian 13 test image (`tests/docker/Dockerfile`, target `test`) | `scripts/test-bash.sh` | 109 passed, 0 failed |
+| bats-core 1.14.0 | Debian 13 test image (`tests/docker/Dockerfile`, target `test`) | `scripts/test-bash.sh` | 119 passed, 0 failed |
 | ruff 0.16.9, mypy 2.3.1 `--strict` | `python:3.13-slim` | `scripts/lint-python.sh` | No findings |
-| Samba AD integration | Samba 4.22.11 AD DC and a client, Debian 13 containers | `tests/integration/run.sh` | 13 passed, 0 failed |
+| Samba AD integration | Samba 4.22.11 (Debian package 4.22.11+dfsg-0+deb13u1) AD DC and a client, Debian 13 containers | `tests/integration/run.sh` | 14 passed, 0 failed |
 | actionlint 1.7.12 | `rhysd/actionlint:1.7.12` | `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12` | No findings |
+
+Pester's coverage figure counts commands (breakpoints), not lines.
 
 CI (`.github/workflows/ci.yml`) runs the same commands on every push to `main` and every pull
 request, plus the Pester suite on a Windows runner under Windows PowerShell 5.1 and PowerShell 7,
-and actionlint.
+and actionlint. It has not run yet (see below); the PowerShell 7 on Windows step is the one
+combination with no local result.
 
 ## Folder structure
 
