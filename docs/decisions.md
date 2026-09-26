@@ -61,6 +61,13 @@ Encryption enhanced key usage, and its private key to read the files (`Unprotect
 personal store. Both tools produce standard CMS, so a file written by PowerShell can be
 decrypted with openssl and the other way round; a Pester test checks this.
 
+The two toolkits differ in one place. `onboard-user.sh` refuses a real run without
+`--deliver-dir` and `--deliver-cert`, because a script has no result object to hand the password
+back on. `New-ItoUser` allows a run without `-DeliveryPath`, for scripts that pass the
+`SecureString` on themselves, and ends such a run with a warning that the passwords exist only on
+the results. An operator who did not keep the output (`$results = New-ItoUser ...`) must reset
+those passwords, which the warning says.
+
 ## 4. Create Samba accounts with one ldbadd, with the password on standard input
 
 **Context.** `samba-tool user create NAME PASSWORD` puts the password in the process list, and a

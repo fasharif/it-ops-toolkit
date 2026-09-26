@@ -19,7 +19,8 @@ function New-ItoUser {
         6. Adds the account to the default groups and the department's groups.
         7. Delivers the initial password as a SecureString on the result object and, with
            -DeliveryPath, as a CMS-encrypted file that only the holder of the delivery
-           certificate's private key can read.
+           certificate's private key can read. Without -DeliveryPath, a warning at the end says
+           that the passwords are only on the results, so keep them ($results = New-ItoUser ...).
 
         The initial password is never written to the console, verbose output, warnings or the
         summary file, and it is never passed to a command parameter as text, which is what
@@ -364,6 +365,16 @@ function New-ItoUser {
         }
         $counts = $results | Group-Object -Property Status | Sort-Object -Property Name | ForEach-Object { '{0} {1}' -f $_.Count, $_.Name.ToLowerInvariant() }
         Write-Information -MessageData ('Onboarding summary: {0}.' -f ($counts -join ', ')) -Tags 'Summary'
+
+        # onboard-user.sh refuses a real run without delivery files. New-ItoUser allows it, for
+        # scripts that hand the SecureString on themselves, but says where the passwords are.
+        $createdCount = @($results | Where-Object { $_.Status -eq 'Created' }).Count
+        if (-not $hasDeliveryPath -and $createdCount -gt 0) {
+            $message = '{0} account(s) were created without -DeliveryPath, so their initial passwords exist only on the InitialPassword property (a SecureString) of the results. ' +
+                'If the results were not kept, for example with $results = New-ItoUser ..., reset those passwords before handing the accounts over. ' +
+                'Use -DeliveryPath and -DeliveryCertificate to write encrypted delivery files.'
+            Write-Warning ($message -f $createdCount)
+        }
 
         if ($PSBoundParameters.ContainsKey('SummaryPath') -and $PSCmdlet.ShouldProcess($SummaryPath, 'Write onboarding summary CSV')) {
             $results |

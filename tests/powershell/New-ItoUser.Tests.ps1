@@ -519,6 +519,26 @@ Describe 'New-ItoUser' {
             $result.InitialPassword | Should -Not -BeNullOrEmpty
             $result.Warnings[0] | Should -BeLike 'The password delivery file could not be written: Access to the path is denied.*InitialPassword*'
         }
+
+        It 'warns once, at the end of a real run without -DeliveryPath, that the passwords are only on the results' {
+            $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,', 'E2,Omar,Haddad,Sales,,,')
+            $warnings = $null
+            $null = New-ItoUser -Path $feed -ConfigPath $script:configPath -Confirm:$false -WarningVariable warnings -WarningAction SilentlyContinue
+            @($warnings).Count | Should -Be 1
+            "$($warnings[0])" | Should -BeLike '2 account(s) were created without -DeliveryPath*InitialPassword*reset those passwords*'
+        }
+
+        It 'does not warn about delivery under -WhatIf or when delivery files are written' {
+            $delivery = Join-Path -Path $TestDrive -ChildPath 'delivery-nowarning'
+            $null = New-Item -ItemType Directory -Path $delivery -Force
+            $certificate = New-TestDeliveryCertificate -Directory $TestDrive
+            $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
+            $warnings = $null
+            $null = New-ItoUser -Path $feed -ConfigPath $script:configPath -WhatIf -WarningVariable warnings -WarningAction SilentlyContinue
+            @($warnings).Count | Should -Be 0
+            $null = New-ItoUser -Path $feed -ConfigPath $script:configPath -DeliveryPath $delivery -DeliveryCertificate $certificate.CerPath -Confirm:$false -WarningVariable warnings -WarningAction SilentlyContinue
+            @($warnings).Count | Should -Be 0
+        }
     }
 
     Context 'summary' {
