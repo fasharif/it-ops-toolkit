@@ -407,6 +407,31 @@ Describe 'New-ItoUser' {
             Unprotect-CmsMessage -Path $expected -To $certificate.Certificate | Should -Match 'Account: sara.ali'
         }
 
+        It 'writes delivery files to a folder whose path is 260 characters or longer' {
+            # Windows PowerShell 5.1 resolves such a folder to a '\\?\C:\...' path, which Join-Path rejects.
+            $prefix = ''
+            if ([System.Environment]::OSVersion.Platform -eq 'Win32NT') {
+                $prefix = '\\?\'
+            }
+            $root = Join-Path -Path $TestDrive -ChildPath 'long-delivery'
+            $long = $root
+            while ($long.Length -lt 270) {
+                $long = Join-Path -Path $long -ChildPath 'a-deliberately-long-folder-name'
+            }
+            $null = [System.IO.Directory]::CreateDirectory($prefix + $long)
+            $certificate = New-TestDeliveryCertificate -Directory $TestDrive
+            $feed = New-Feed -Rows @('E1,Sara,Ali,Finance,,,')
+            try {
+                $result = New-ItoUser -Path $feed -ConfigPath $script:configPath -DeliveryPath $long -DeliveryCertificate $certificate.CerPath -Confirm:$false
+                $result.Warnings | Should -BeNullOrEmpty
+                $result.DeliveryFile | Should -BeLike '*sara.ali.cms'
+                [System.IO.File]::ReadAllText($result.DeliveryFile) | Should -Match '-----BEGIN CMS-----'
+            }
+            finally {
+                [System.IO.Directory]::Delete($prefix + $root, $true)
+            }
+        }
+
         It 'writes delivery files that openssl can decrypt too, for service desks on Linux' -Skip:($PSVersionTable.PSEdition -ne 'Core' -or -not (Get-Command -Name openssl -ErrorAction SilentlyContinue)) {
             $delivery = Join-Path -Path $TestDrive -ChildPath 'delivery-openssl'
             $null = New-Item -ItemType Directory -Path $delivery -Force

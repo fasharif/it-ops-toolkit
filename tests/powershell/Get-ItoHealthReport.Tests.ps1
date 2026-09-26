@@ -292,6 +292,45 @@ Describe 'Get-ItoHealthReport' {
             $html | Should -Match '<td>VendorUpdater</td><td>Vendor updater</td><td>Stopped</td><td>0</td><td>No: stopped cleanly, for information</td>'
         }
 
+        It 'still returns the report, with a warning, when the files cannot be written' {
+            $gone = Join-Path -Path (Join-Path -Path $TestDrive -ChildPath 'removed-after-validation') -ChildPath 'reports'
+            Mock -ModuleName ItOpsToolkit Resolve-Path { [pscustomobject]@{ ProviderPath = $gone } }
+            $warnings = $null
+            $report = Get-ItoHealthReport -OutputDirectory $script:outDir -WarningVariable warnings -WarningAction SilentlyContinue
+            $report.Checks.Count | Should -Be 9
+            $report.OverallStatus | Should -Be 'OK'
+            $report.JsonPath | Should -BeNullOrEmpty
+            $report.HtmlPath | Should -BeNullOrEmpty
+            @($warnings).Count | Should -Be 1
+            "$($warnings[0])" | Should -BeLike "The report could not be written to '*': *The checks are still in the returned report object."
+        }
+
+        It 'writes to a folder whose path is 260 characters or longer' {
+            # Windows PowerShell 5.1 resolves such a folder to a '\\?\C:\...' path, which Join-Path
+            # rejects. On Windows the test folder is created and removed through that form too.
+            $prefix = ''
+            if ([System.Environment]::OSVersion.Platform -eq 'Win32NT') {
+                $prefix = '\\?\'
+            }
+            $root = Join-Path -Path $TestDrive -ChildPath 'long'
+            $long = $root
+            while ($long.Length -lt 270) {
+                $long = Join-Path -Path $long -ChildPath 'a-deliberately-long-folder-name'
+            }
+            $null = [System.IO.Directory]::CreateDirectory($prefix + $long)
+            try {
+                $warnings = $null
+                $report = Get-ItoHealthReport -OutputDirectory $long -WarningVariable warnings -WarningAction SilentlyContinue
+                @($warnings).Count | Should -Be 0
+                $report.JsonPath | Should -Not -BeNullOrEmpty
+                $report.HtmlPath | Should -Not -BeNullOrEmpty
+                [System.IO.File]::ReadAllText($report.JsonPath) | ConvertFrom-Json | Select-Object -ExpandProperty OverallStatus | Should -Be 'OK'
+            }
+            finally {
+                [System.IO.Directory]::Delete($prefix + $root, $true)
+            }
+        }
+
         It 'writes no files with -WhatIf' {
             $report = Get-ItoHealthReport -OutputDirectory $script:outDir -WhatIf
             $report.JsonPath | Should -BeNullOrEmpty

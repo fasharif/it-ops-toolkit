@@ -136,21 +136,30 @@ function Get-ItoHealthReport {
     }
 
     if ($PSBoundParameters.ContainsKey('OutputDirectory')) {
-        $folder = (Resolve-Path -LiteralPath $OutputDirectory).ProviderPath
-        $safeName = $report.ComputerName -replace '[^A-Za-z0-9-]', '_'
-        $stamp = $now.ToUniversalTime().ToString('yyyyMMddTHHmmssZ', [System.Globalization.CultureInfo]::InvariantCulture)
-        $baseName = Join-Path -Path $folder -ChildPath ('health-{0}-{1}' -f $safeName, $stamp)
-        $utf8 = New-Object -TypeName System.Text.UTF8Encoding -ArgumentList $false
+        # A failed write must not lose the checks that already ran: the report is still returned,
+        # with a warning and without the path of the file that could not be written.
+        try {
+            $folder = (Resolve-Path -LiteralPath $OutputDirectory).ProviderPath
+            $safeName = $report.ComputerName -replace '[^A-Za-z0-9-]', '_'
+            $stamp = $now.ToUniversalTime().ToString('yyyyMMddTHHmmssZ', [System.Globalization.CultureInfo]::InvariantCulture)
+            # Path.Combine rather than Join-Path: for a folder path of 260 characters or more,
+            # Windows PowerShell 5.1 returns a '\\?\C:\...' provider path, which Join-Path rejects.
+            $baseName = [System.IO.Path]::Combine($folder, ('health-{0}-{1}' -f $safeName, $stamp))
+            $utf8 = New-Object -TypeName System.Text.UTF8Encoding -ArgumentList $false
 
-        if ($PSCmdlet.ShouldProcess("$baseName.json", 'Write health report JSON')) {
-            $json = $report | Select-Object -Property ComputerName, GeneratedAtUtc, ToolkitVersion, EventWindowHours, OverallStatus, Checks, Thresholds |
-                ConvertTo-Json -Depth 6
-            [System.IO.File]::WriteAllText("$baseName.json", $json, $utf8)
-            $report.JsonPath = "$baseName.json"
+            if ($PSCmdlet.ShouldProcess("$baseName.json", 'Write health report JSON')) {
+                $json = $report | Select-Object -Property ComputerName, GeneratedAtUtc, ToolkitVersion, EventWindowHours, OverallStatus, Checks, Thresholds |
+                    ConvertTo-Json -Depth 6
+                [System.IO.File]::WriteAllText("$baseName.json", $json, $utf8)
+                $report.JsonPath = "$baseName.json"
+            }
+            if ($PSCmdlet.ShouldProcess("$baseName.html", 'Write health report HTML')) {
+                [System.IO.File]::WriteAllText("$baseName.html", (ConvertTo-ItoHealthHtml -Report $report), $utf8)
+                $report.HtmlPath = "$baseName.html"
+            }
         }
-        if ($PSCmdlet.ShouldProcess("$baseName.html", 'Write health report HTML')) {
-            [System.IO.File]::WriteAllText("$baseName.html", (ConvertTo-ItoHealthHtml -Report $report), $utf8)
-            $report.HtmlPath = "$baseName.html"
+        catch {
+            Write-Warning ("The report could not be written to '{0}': {1} The checks are still in the returned report object." -f $OutputDirectory, $_.Exception.Message.Trim())
         }
     }
 

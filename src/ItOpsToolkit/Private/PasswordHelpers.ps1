@@ -268,7 +268,9 @@ function Write-ItoDeliveryFile {
         [System.Security.Cryptography.X509Certificates.X509Certificate2] $Certificate
     )
 
-    $path = Join-Path -Path $Directory -ChildPath ('{0}.cms' -f $SamAccountName)
+    # Path.Combine rather than Join-Path, which rejects the '\\?\C:\...' form that Windows
+    # PowerShell 5.1 gives a resolved folder path of 260 characters or more.
+    $path = [System.IO.Path]::Combine($Directory, ('{0}.cms' -f $SamAccountName))
     $prefix = "Account: {0}`nSign-in name: {1}`nInitial password: " -f $SamAccountName, $UserPrincipalName
     $suffix = "`nThe user must choose a new password at first sign-in.`n"
     $pem = Protect-ItoSecretText -Prefix $prefix -Secret $Password -Suffix $suffix -Certificate $Certificate
