@@ -176,9 +176,11 @@ function Remove-ItoUser {
                 }
             }
 
-            # 3. Ticket in the description (only once, however often the command runs).
+            # 3. Ticket in the description (only once, however often the command runs). The ticket
+            # must appear as a whole token: INC1 is not recorded just because INC12345 is.
             $oldDescription = [string]$user.Description
-            if ($oldDescription -notmatch [regex]::Escape($ticket)) {
+            $ticketPattern = '(?<![A-Za-z0-9])' + [regex]::Escape($ticket) + '(?![A-Za-z0-9])'
+            if ($oldDescription -notmatch $ticketPattern) {
                 $newDescription = 'Offboarded {0} ticket {1}' -f $utcNow.ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture), $ticket
                 if (-not [string]::IsNullOrWhiteSpace($oldDescription)) {
                     $newDescription = '{0} | previous: {1}' -f $newDescription, $oldDescription

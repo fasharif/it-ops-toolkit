@@ -83,6 +83,20 @@ Describe 'Remove-ItoUser' {
         Should -Invoke -ModuleName ItOpsToolkit Move-ADObject -Times 0 -Exactly
     }
 
+    It 'records a ticket whose number is only a prefix of a ticket already in the description' {
+        $script:user = New-TestAdUser -SamAccountName 'omar.haddad' -Description 'Offboarded 2026-09-01 ticket INC12345'
+        $null = Remove-ItoUser -Identity 'omar.haddad' -TicketNumber 'INC1' -ConfigPath $script:configPath -AuditPath $script:auditPath -Confirm:$false
+        Should -Invoke -ModuleName ItOpsToolkit Set-ADUser -Times 1 -Exactly -ParameterFilter {
+            $Description -match '^Offboarded \d{4}-\d{2}-\d{2} ticket INC1 \| previous: Offboarded 2026-09-01 ticket INC12345$'
+        }
+    }
+
+    It 'treats the ticket as recorded when it appears as a whole token, in any case' {
+        $script:user = New-TestAdUser -SamAccountName 'omar.haddad' -Description 'Leaver, see req-2041.'
+        $null = Remove-ItoUser -Identity 'omar.haddad' -TicketNumber 'REQ-2041' -ConfigPath $script:configPath -AuditPath $script:auditPath -Confirm:$false
+        Should -Invoke -ModuleName ItOpsToolkit Set-ADUser -Times 0 -Exactly
+    }
+
     It 'finishes a partly completed offboarding' {
         # Disabled by hand, but still in a group and still in the staff OU.
         $script:user = New-TestAdUser -SamAccountName 'omar.haddad' -Enabled $false -MemberOf @($script:groups[0])

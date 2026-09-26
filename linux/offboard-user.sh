@@ -158,8 +158,10 @@ elif plan "disable the account"; then
     actions+=('Disabled account')
 fi
 
-# 3. Ticket in the description, once however often the script runs.
-if [[ ${description^^} != *"$TICKET"* ]]; then
+# 3. Ticket in the description, once however often the script runs. The ticket must appear as a
+# whole token: INC1 is not recorded just because INC12345 is. TICKET is [A-Z0-9-] only.
+ticket_pattern="(^|[^A-Z0-9])${TICKET}([^A-Z0-9]|$)"
+if [[ ! ${description^^} =~ $ticket_pattern ]]; then
     new_description="Offboarded $(date -u +%Y-%m-%d) ticket $TICKET"
     if [[ -n ${description// /} ]]; then
         new_description+=" | previous: $description"

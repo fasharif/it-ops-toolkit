@@ -120,6 +120,26 @@ distinguishedName: CN=Omar Haddad,OU=Disabled Users,DC=corp,DC=itops,DC=test'
     assert_output ''
 }
 
+@test 'records a ticket whose number is only a prefix of a ticket already in the description' {
+    account 'dn: CN=Omar Haddad,OU=Sales,OU=Staff,DC=corp,DC=itops,DC=test
+userAccountControl: 514
+description: Offboarded 2026-09-01 ticket INC12345
+distinguishedName: CN=Omar Haddad,OU=Disabled Users,DC=corp,DC=itops,DC=test'
+    run "$REPO_ROOT/linux/offboard-user.sh" --user omar.haddad --ticket INC1 --audit-dir "$AUDIT" --config "$CONFIG"
+    assert_success
+    assert_line --regexp "^Set the description to 'Offboarded [0-9-]{10} ticket INC1 \| previous: Offboarded 2026-09-01 ticket INC12345'$"
+}
+
+@test 'treats the ticket as recorded when it appears as a whole token, in any case' {
+    account 'dn: CN=Omar Haddad,OU=Disabled Users,DC=corp,DC=itops,DC=test
+userAccountControl: 514
+description: Leaver, see req-2041.
+distinguishedName: CN=Omar Haddad,OU=Disabled Users,DC=corp,DC=itops,DC=test'
+    run "$REPO_ROOT/linux/offboard-user.sh" --user omar.haddad --ticket REQ-2041 --audit-dir "$AUDIT" --config "$CONFIG"
+    assert_success
+    assert_output 'Already offboarded: omar.haddad needed no changes.'
+}
+
 @test 'finishes a partly completed offboarding' {
     account 'dn: CN=Omar Haddad,OU=Sales,OU=Staff,DC=corp,DC=itops,DC=test
 userAccountControl: 66050
