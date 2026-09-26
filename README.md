@@ -146,9 +146,10 @@ flowchart LR
 ```
 
 The PowerShell side and the Bash side are independent implementations of the same rules. They
-share the JSON configuration and two fixture files that both test suites run: account-name cases
-([tests/fixtures/account-names.csv](tests/fixtures/account-names.csv)) and bad configurations
-([tests/fixtures/invalid-configs.tsv](tests/fixtures/invalid-configs.tsv)).
+share the JSON configuration and three fixture files that both test suites run: account-name cases
+([tests/fixtures/account-names.csv](tests/fixtures/account-names.csv)), HR feed rows with the
+exact problems each must report ([tests/fixtures/feed-rows.csv](tests/fixtures/feed-rows.csv))
+and bad configurations ([tests/fixtures/invalid-configs.tsv](tests/fixtures/invalid-configs.tsv)).
 
 ## Tech stack and why
 
@@ -313,7 +314,7 @@ combination with no local result.
 └── tests/
     ├── bats/                   bats unit tests and fake Samba tools
     ├── docker/Dockerfile       test images: tools, test (bats), dc (Samba AD)
-    ├── fixtures/               account-name and bad-configuration cases shared by Pester and bats
+    ├── fixtures/               account-name, feed-row and bad-configuration cases shared by Pester and bats
     ├── integration/            Samba AD integration tests (compose.yaml, run.sh)
     └── powershell/             Pester tests and ActiveDirectory stubs
 ```

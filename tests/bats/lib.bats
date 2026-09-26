@@ -258,6 +258,36 @@ EOF
     assert_line --index 9 --partial "The full name 'Anastasia-Konstantina Montgomery-Smithson-Fitzwilliam-Worthington' is 65 characters long. Active Directory limits the common name (CN) to 64 characters, so shorten the name in the HR record."
 }
 
+@test 'hrfeed applies the shared row rules that the Pester suite also tests' {
+    # tests/fixtures/feed-rows.csv holds rows and the exact problems both toolkits must report.
+    python3 - "$REPO_ROOT/tests/fixtures/feed-rows.csv" "$BATS_TEST_TMPDIR/feed.csv" "$BATS_TEST_TMPDIR/expected.txt" <<'PY'
+import csv, sys
+with open(sys.argv[1], encoding='utf-8', newline='') as source, \
+        open(sys.argv[2], 'w', encoding='utf-8', newline='') as feed, \
+        open(sys.argv[3], 'w', encoding='utf-8') as expected:
+    writer = csv.writer(feed)
+    writer.writerow(['EmployeeId', 'GivenName', 'Surname', 'Department', 'Title', 'Manager', 'StartDate'])
+    for case in csv.DictReader(source):
+        writer.writerow([case['EmployeeId'], case['GivenName'], case['Surname'], 'Finance', case['Title'], case['Manager'], case['StartDate']])
+        print(case['Case'] + '\t' + case['Problem'], file=expected)
+PY
+    run hrfeed "$BATS_TEST_TMPDIR/feed.csv"
+    assert_success
+    local -a cases
+    mapfile -t cases <"$BATS_TEST_TMPDIR/expected.txt"
+    assert_equal "${#lines[@]}" "${#cases[@]}"
+    local i name problem
+    for i in "${!cases[@]}"; do
+        name=${cases[i]%%$'\t'*}
+        problem=${cases[i]#*$'\t'}
+        # The problems are the last field of each output line.
+        if [[ ${lines[i]##*$'\x1f'} != "$problem" ]]; then
+            fail "Case '$name': expected problems '$problem', got '${lines[i]##*$'\x1f'}'"
+        fi
+    done
+    ((${#cases[@]} > 10))
+}
+
 @test 'hrfeed reads column headers without regard to case, as New-ItoUser does' {
     printf 'employeeid,GIVENNAME,surname,Department\nE1,Sara,Ali,Finance\n' >"$BATS_TEST_TMPDIR/feed.csv"
     run hrfeed "$BATS_TEST_TMPDIR/feed.csv"

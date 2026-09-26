@@ -124,7 +124,11 @@ kept. Python 3 is already a hard dependency of `samba-tool`. The helper is type-
 (`python3 -I`), so nothing next to it can shadow a standard library module.
 
 **Consequences.** One Python file in a Bash toolkit. Its output uses the ASCII unit separator
-because `read` collapses runs of tabs and would lose empty fields.
+because `read` collapses runs of tabs and would lose empty fields. The row rules exist twice, so
+both test suites check `tests/fixtures/feed-rows.csv`, which lists rows and the exact problems
+each must produce. That fixture found one difference: Python's `strptime` accepted `2026-1-5`
+and Arabic-Indic digits as a start date, which the PowerShell side rejects; `hrfeed.py` now
+requires exactly `yyyy-MM-dd` in ASCII digits too.
 
 ## 8. Idempotent onboarding and offboarding
 

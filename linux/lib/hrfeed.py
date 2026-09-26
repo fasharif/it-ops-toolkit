@@ -35,6 +35,9 @@ REQUIRED_COLUMNS = ("EmployeeId", "GivenName", "Surname", "Department")
 OPTIONAL_COLUMNS = ("Title", "Manager", "StartDate")
 EMPLOYEE_ID = re.compile(r"^[A-Za-z0-9-]{1,16}$")
 ACCOUNT_NAME = re.compile(r"^[A-Za-z0-9._-]{1,20}$")
+# Exactly yyyy-MM-dd in ASCII digits, as .NET's TryParseExact in the PowerShell module requires.
+# strptime alone would also accept 2026-1-5.
+START_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 NAME_PUNCTUATION = frozenset(" .'-\u2019")  # \u2019 is the typographic apostrophe
 SEPARATOR = "\x1f"
 # Latin letters that have no Unicode decomposition, with their usual ASCII spelling: sharp s
@@ -90,6 +93,17 @@ def is_person_name(name: str) -> bool:
     return unicodedata.category(last)[0] in "LM" or last == "."
 
 
+def is_start_date(value: str) -> bool:
+    """True for a real calendar date written exactly as yyyy-MM-dd."""
+    if not START_DATE.fullmatch(value):
+        return False
+    try:
+        datetime.datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        return False
+    return True
+
+
 def has_control_characters(value: str) -> bool:
     return any(unicodedata.category(ch) == "Cc" for ch in value)
 
@@ -131,11 +145,8 @@ def other_field_problems(row: dict[str, str]) -> list[str]:
         problems.append(f"Manager '{manager}' must be the manager's account name (sAMAccountName).")
 
     start_date = row["StartDate"]
-    if start_date:
-        try:
-            datetime.datetime.strptime(start_date, "%Y-%m-%d")
-        except ValueError:
-            problems.append(f"StartDate '{start_date}' must use the format yyyy-MM-dd.")
+    if start_date and not is_start_date(start_date):
+        problems.append(f"StartDate '{start_date}' must use the format yyyy-MM-dd.")
     return problems
 
 

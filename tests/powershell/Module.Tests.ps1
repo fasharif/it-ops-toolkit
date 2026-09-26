@@ -139,6 +139,33 @@ Describe 'Onboarding configuration' {
     }
 }
 
+Describe 'HR feed row rules' {
+    BeforeAll {
+        $script:rowCases = @(Import-Csv -LiteralPath (Join-Path -Path $script:RepoRoot -ChildPath 'tests/fixtures/feed-rows.csv') -Encoding UTF8)
+        $script:rowConfigPath = New-TestConfigFile -Directory $TestDrive
+    }
+
+    It 'reports exactly the problems in the shared fixture for every row (hrfeed.py is tested against the same file)' {
+        $script:rowCases.Count | Should -BeGreaterThan 10
+        foreach ($case in $script:rowCases) {
+            $problems = InModuleScope ItOpsToolkit -Parameters @{ Case = $case; ConfigPath = $script:rowConfigPath } {
+                $config = Read-ItoOnboardingConfig -Path $ConfigPath
+                $row = @{
+                    EmployeeId = $Case.EmployeeId
+                    GivenName  = $Case.GivenName
+                    Surname    = $Case.Surname
+                    Department = 'Finance'
+                    Title      = $Case.Title
+                    Manager    = $Case.Manager
+                    StartDate  = $Case.StartDate
+                }
+                @(Test-ItoOnboardingRecord -Row $row -Config $config) -join ' '
+            }
+            $problems | Should -BeExactly $case.Problem -Because $case.Case
+        }
+    }
+}
+
 Describe 'Account name rules' {
     BeforeAll {
         $script:cases = @(Import-Csv -LiteralPath (Join-Path -Path $script:RepoRoot -ChildPath 'tests/fixtures/account-names.csv') -Encoding UTF8)
