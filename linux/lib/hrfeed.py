@@ -136,10 +136,29 @@ def row_problems(row: dict[str, str], seen_ids: set[str]) -> list[str]:
     return problems
 
 
-def convert(rows: Iterable[dict[str, str | None]]) -> Iterable[str]:
+def header_map(fieldnames: Sequence[str]) -> dict[str, str]:
+    """Map each known column to the header used in the file, matched without regard to case.
+
+    New-ItoUser reads CSV columns the same way (PowerShell property names ignore case). When two
+    headers differ only in case, the first one wins.
+    """
+    by_lower: dict[str, str] = {}
+    for name in fieldnames:
+        by_lower.setdefault(name.lower(), name)
+    return {
+        column: by_lower[column.lower()]
+        for column in REQUIRED_COLUMNS + OPTIONAL_COLUMNS
+        if column.lower() in by_lower
+    }
+
+
+def convert(rows: Iterable[dict[str, str | None]], headers: dict[str, str]) -> Iterable[str]:
     seen_ids: set[str] = set()
     for number, raw in enumerate(rows, start=1):
-        row = {column: (raw.get(column) or "").strip() for column in REQUIRED_COLUMNS + OPTIONAL_COLUMNS}
+        row = {
+            column: (raw.get(headers.get(column, column)) or "").strip()
+            for column in REQUIRED_COLUMNS + OPTIONAL_COLUMNS
+        }
         problems = row_problems(row, seen_ids)
         fields = [str(number)]
         fields += [row[column] for column in REQUIRED_COLUMNS]
@@ -158,8 +177,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         with open(args.csv_file, encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle)
-            columns = reader.fieldnames or []
-            missing = [column for column in REQUIRED_COLUMNS if column not in columns]
+            headers = header_map(reader.fieldnames or [])
+            missing = [column for column in REQUIRED_COLUMNS if column not in headers]
             if missing:
                 expected = ", ".join(REQUIRED_COLUMNS + OPTIONAL_COLUMNS)
                 print(
@@ -168,7 +187,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     file=sys.stderr,
                 )
                 return 2
-            for line in convert(reader):
+            for line in convert(reader, headers):
                 print(line)
     except (OSError, UnicodeDecodeError, csv.Error) as error:
         print(f"Could not read the HR feed '{args.csv_file}': {error}", file=sys.stderr)

@@ -270,4 +270,9 @@ $result = Remove-ItoUser -Identity 'omar.haddad' -TicketNumber 'INC0012345' -Con
         { Remove-ItoUser -Identity $Identity -TicketNumber $Ticket -ConfigPath $script:configPath -AuditPath $script:auditPath -Confirm:$false } |
             Should -Throw -ErrorId 'ParameterArgumentValidationError,Remove-ItoUser'
     }
+
+    It 'rejects a -DisabledOu written in lower case, as the configuration file does' {
+        { Remove-ItoUser -Identity 'omar.haddad' -TicketNumber 'INC1' -DisabledOu 'ou=Leavers,dc=corp,dc=itops,dc=test' -AuditPath $script:auditPath -Confirm:$false } |
+            Should -Throw -ErrorId 'ParameterArgumentValidationError,Remove-ItoUser'
+    }
 }

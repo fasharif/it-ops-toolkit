@@ -41,7 +41,8 @@ function Remove-ItoUser {
         Path to the JSON configuration. Its disabledOu setting is the target OU.
 
     .PARAMETER DisabledOu
-        Distinguished name of the target OU. Use instead of -ConfigPath.
+        Distinguished name of the target OU, with OU=, CN= and DC= in capitals, as in the
+        configuration file. Use instead of -ConfigPath.
 
     .PARAMETER Server
         Domain controller to use for every directory call. Without it, one writable domain
@@ -94,7 +95,7 @@ function Remove-ItoUser {
         [string] $ConfigPath,
 
         [Parameter(Mandatory, ParameterSetName = 'Ou')]
-        [ValidatePattern('^(?:(?:OU|CN)=[^,=]+,)+(?:DC=[A-Za-z0-9-]+,)*DC=[A-Za-z0-9-]+$')]
+        [ValidatePattern('^(?:(?:OU|CN)=[^,=]+,)+(?:DC=[A-Za-z0-9-]+,)*DC=[A-Za-z0-9-]+$', Options = 'None')]
         [string] $DisabledOu,
 
         [ValidateNotNullOrEmpty()]

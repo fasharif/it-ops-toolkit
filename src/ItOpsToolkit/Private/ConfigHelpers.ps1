@@ -4,7 +4,8 @@ function ConvertTo-ItoHashtable {
         Converts the output of ConvertFrom-Json into nested hashtables and arrays.
     .DESCRIPTION
         Windows PowerShell 5.1 has no ConvertFrom-Json -AsHashtable, so this walks the
-        PSCustomObject graph instead. Hashtable keys are case-insensitive, like the rest of PowerShell.
+        PSCustomObject graph instead. The hashtables are case-sensitive, as JSON keys are, unlike
+        PowerShell's @{}: a setting written as 'OU' must not be read as 'ou'.
     #>
     [CmdletBinding()]
     [OutputType([hashtable], [object[]])]
@@ -17,7 +18,7 @@ function ConvertTo-ItoHashtable {
         return $null
     }
     if ($InputObject -is [System.Management.Automation.PSCustomObject]) {
-        $table = @{}
+        $table = New-Object -TypeName System.Collections.Hashtable -ArgumentList ([System.StringComparer]::Ordinal)
         foreach ($property in $InputObject.PSObject.Properties) {
             $table[$property.Name] = ConvertTo-ItoHashtable -InputObject $property.Value
         }
@@ -37,6 +38,11 @@ function Read-ItoOnboardingConfig {
     <#
     .SYNOPSIS
         Reads and validates the shared onboarding and offboarding JSON configuration.
+    .DESCRIPTION
+        The rules match linux/lib/config-check.jq and config/onboarding.schema.json. Like the
+        schema, they are case-sensitive: setting names, samAccountNameFormat and the OU=, CN=
+        and DC= parts of distinguished names must be written exactly as shown. PowerShell's
+        hashtables and -match ignore case by default, so the checks below use -c operators.
     .OUTPUTS
         A hashtable with UpnSuffix, SamAccountNameFormat, DisabledOu, DefaultGroups and Departments.
     #>
@@ -67,7 +73,7 @@ function Read-ItoOnboardingConfig {
     $knownKeys = @('upnSuffix', 'samAccountNameFormat', 'disabledOu', 'defaultGroups', 'departments')
 
     foreach ($key in $data.Keys) {
-        if ($key -notlike '$*' -and $knownKeys -notcontains $key) {
+        if ($key -notlike '$*' -and $knownKeys -cnotcontains $key) {
             $problems.Add("Unknown setting '$key'. Known settings: $($knownKeys -join ', ').")
         }
     }
@@ -80,22 +86,27 @@ function Read-ItoOnboardingConfig {
     $format = 'first.last'
     if ($data.ContainsKey('samAccountNameFormat')) {
         $format = [string]$data['samAccountNameFormat']
-        if (@('first.last', 'flast') -notcontains $format) {
+        if (@('first.last', 'flast') -cnotcontains $format) {
             $problems.Add("'samAccountNameFormat' must be 'first.last' or 'flast' (found '$format').")
         }
     }
 
     $disabledOu = [string]$data['disabledOu']
-    if ($disabledOu -notmatch $dnPattern) {
-        $problems.Add("'disabledOu' must be a distinguished name such as OU=Disabled Users,DC=corp,DC=example,DC=com (found '$disabledOu').")
+    if ($disabledOu -cnotmatch $dnPattern) {
+        $problems.Add("'disabledOu' must be a distinguished name such as OU=Disabled Users,DC=corp,DC=example,DC=com, with OU=, CN= and DC= in capitals (found '$disabledOu').")
     }
 
     $defaultGroups = @()
-    if ($data.ContainsKey('defaultGroups')) {
-        $defaultGroups = @($data['defaultGroups'])
-        foreach ($group in $defaultGroups) {
-            if ([string]$group -notmatch $groupPattern) {
-                $problems.Add("Default group name '$group' is not a valid group name.")
+    if ($null -ne $data['defaultGroups']) {
+        if ($data['defaultGroups'] -isnot [array]) {
+            $problems.Add("'defaultGroups' must be a list of group names.")
+        }
+        else {
+            $defaultGroups = @($data['defaultGroups'])
+            foreach ($group in $defaultGroups) {
+                if ($group -isnot [string] -or $group -notmatch $groupPattern) {
+                    $problems.Add("Default group name '$group' is not a valid group name.")
+                }
             }
         }
     }
@@ -112,16 +123,26 @@ function Read-ItoOnboardingConfig {
                 $problems.Add("Department '$name' must be an object with 'ou' and 'groups'.")
                 continue
             }
+            foreach ($entryKey in $entry.Keys) {
+                if (@('ou', 'groups') -cnotcontains $entryKey) {
+                    $problems.Add("Department '$name' has an unknown setting '$entryKey'. Known settings: ou, groups.")
+                }
+            }
             $ou = [string]$entry['ou']
-            if ($ou -notmatch $dnPattern) {
+            if ($ou -cnotmatch $dnPattern) {
                 $problems.Add("Department '$name' has an invalid 'ou' distinguished name ('$ou').")
             }
             $groups = @()
-            if ($entry.ContainsKey('groups')) {
-                $groups = @($entry['groups'])
+            if ($null -ne $entry['groups']) {
+                if ($entry['groups'] -isnot [array]) {
+                    $problems.Add("Department '$name' has a 'groups' setting that is not a list of group names.")
+                }
+                else {
+                    $groups = @($entry['groups'])
+                }
             }
             foreach ($group in $groups) {
-                if ([string]$group -notmatch $groupPattern) {
+                if ($group -isnot [string] -or $group -notmatch $groupPattern) {
                     $problems.Add("Department '$name' lists an invalid group name ('$group').")
                 }
             }

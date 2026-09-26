@@ -106,6 +106,22 @@ Describe 'Onboarding configuration' {
         Get-Content -LiteralPath $script:examplePath -Raw | Test-Json -SchemaFile $schema | Should -BeTrue
     }
 
+    It 'rejects every shared invalid configuration (the Bash toolkit tests the same file)' {
+        $cases = @(Get-Content -LiteralPath (Join-Path -Path $script:RepoRoot -ChildPath 'tests/fixtures/invalid-configs.tsv') -Encoding UTF8 |
+                Where-Object { $_ -and $_ -notlike '#*' } | ForEach-Object {
+                    $fields = $_ -split "`t"
+                    @{ Case = $fields[0]; Json = $fields[1]; Message = $fields[2] }
+                })
+        $cases.Count | Should -BeGreaterThan 5
+        foreach ($case in $cases) {
+            $path = Join-Path -Path $TestDrive -ChildPath 'shared-case.json'
+            Set-Content -LiteralPath $path -Value $case.Json -Encoding UTF8
+            InModuleScope ItOpsToolkit -Parameters @{ Path = $path; Case = $case } {
+                { Read-ItoOnboardingConfig -Path $Path } | Should -Throw -ExpectedMessage $Case.Message -Because $Case.Case
+            }
+        }
+    }
+
     It 'rejects <Case>' -ForEach @(
         @{ Case = 'a missing upnSuffix'; Json = '{"disabledOu":"OU=Disabled,DC=a,DC=b","departments":{"X":{"ou":"OU=X,DC=a,DC=b"}}}'; Message = '*upnSuffix*' }
         @{ Case = 'a malformed OU'; Json = '{"upnSuffix":"a.test","disabledOu":"OU=Disabled,DC=a,DC=b","departments":{"X":{"ou":"Finance"}}}'; Message = "*Department 'X' has an invalid 'ou'*" }

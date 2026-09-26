@@ -171,6 +171,19 @@ EOF
     assert_output 'The configuration must be a JSON object.'
 }
 
+@test 'config_check rejects every shared invalid configuration (the Pester suite tests the same file)' {
+    local count=0 case json message
+    while IFS=$'\t' read -r case json _ message; do
+        [[ -n $case && $case != '#'* ]] || continue
+        printf '%s' "$json" >"$BATS_TEST_TMPDIR/case.json"
+        run config_check "$BATS_TEST_TMPDIR/case.json"
+        assert_success
+        assert_line "$message"
+        count=$((count + 1))
+    done <"$REPO_ROOT/tests/fixtures/invalid-configs.tsv"
+    ((count > 5))
+}
+
 @test 'config_department matches without regard to case and config_groups removes duplicates' {
     run config_department "$REPO_ROOT/tests/bats/fixtures/onboarding.json" 'finance'
     assert_output "Finance${ITO_US}OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test"
@@ -243,6 +256,17 @@ EOF
     [[ ${lines[7]} != *"appears more than once"* ]]
     assert_line --index 8 --partial "EmployeeId 'E8' appears more than once in this feed."
     assert_line --index 9 --partial "The full name 'Anastasia-Konstantina Montgomery-Smithson-Fitzwilliam-Worthington' is 65 characters long. Active Directory limits the common name (CN) to 64 characters, so shorten the name in the HR record."
+}
+
+@test 'hrfeed reads column headers without regard to case, as New-ItoUser does' {
+    printf 'employeeid,GIVENNAME,surname,Department\nE1,Sara,Ali,Finance\n' >"$BATS_TEST_TMPDIR/feed.csv"
+    run hrfeed "$BATS_TEST_TMPDIR/feed.csv"
+    assert_success
+    IFS=$'\x1f' read -r -a fields <<<"$output"
+    assert_equal "${fields[1]}" E1
+    assert_equal "${fields[2]}" Sara
+    assert_equal "${fields[8]}" sara
+    assert_equal "${fields[9]}" ali
 }
 
 @test 'hrfeed rejects a feed without the required columns' {

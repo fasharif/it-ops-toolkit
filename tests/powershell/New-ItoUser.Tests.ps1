@@ -209,6 +209,13 @@ Describe 'New-ItoUser' {
             $results[1].Message | Should -BeLike '*appears more than once*'
         }
 
+        It 'reads column headers without regard to case, as hrfeed.py does' {
+            $feed = New-Feed -Header 'employeeid,GIVENNAME,surname,Department' -Rows @('E1,Sara,Ali,Finance')
+            $result = New-ItoUser -Path $feed -ConfigPath $script:configPath -Confirm:$false
+            $result.Status | Should -Be 'Created'
+            $result.SamAccountName | Should -Be 'sara.ali'
+        }
+
         It 'stops with a clear error when required columns are missing' {
             $feed = New-Feed -Header 'EmployeeId,FirstName,LastName,Department' -Rows @('E1,Sara,Ali,Finance')
             { New-ItoUser -Path $feed -ConfigPath $script:configPath -Confirm:$false } | Should -Throw -ExpectedMessage '*missing required columns: GivenName, Surname*'
