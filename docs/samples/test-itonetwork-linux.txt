@@ -1,9 +1,9 @@
-# Recorded by scripts/make-samples.sh on 2026-09-26 in PowerShell 7.5 (mcr.microsoft.com/powershell:7.5-ubuntu-24.04 container) on Linux.
+# Recorded by scripts/make-samples.sh on 2026-09-27 in PowerShell 7.6.6 on Linux, in the Ubuntu 24.04 test container (tests/docker/Dockerfile, target powershell).
 PS> Test-ItoNetwork -SkipTrace | Select-Object -ExpandProperty Layers
 
 Layer            Status Detail
 -----            ------ ------
-IP configuration Pass   eth0: 172.17.0.3
+IP configuration Pass   eth0: 172.17.0.5
 Default gateway  Pass   172.17.0.1 answers ping (0 ms).
 DNS servers      Pass   DNS servers: 192.168.65.7.
 DNS resolution   Pass   www.microsoft.com resolves to 23.35.101.225.

@@ -1,8 +1,8 @@
-# Recorded by scripts/make-samples.sh on 2026-09-26 in the Samba AD integration environment (tests/integration): a throwaway test domain on Samba 4.22.11-Debian-4.22.11+dfsg-0+deb13u1, with the scripts run in the Debian 13 client container; ITO_LDAP_URL and ITO_AUTH_FILE are set there.
+# Recorded by scripts/make-samples.sh on 2026-09-27 in the Samba AD integration environment (tests/integration): a throwaway test domain on Samba 4.22.11-Debian-4.22.11+dfsg-0+deb13u1, with the scripts run in the Debian 13 client container; ITO_LDAP_URL and ITO_AUTH_FILE are set there.
 $ linux/offboard-user.sh --user sara.ali --ticket INC0012345 --audit-dir /srv/it-ops/audit --config config/onboarding.example.json
-Exported 3 group membership(s) to /srv/it-ops/audit/sara.ali_INC0012345_20260926T012617Z_groups.csv
+Exported 3 group membership(s) to /srv/it-ops/audit/sara.ali_INC0012345_20260927T192322Z_groups.csv
 Disabled the account
-Set the description to 'Offboarded 2026-09-26 ticket INC0012345 | previous: Start date 2026-10-05. Onboarded 2026-09-26 by it-ops-toolkit'
+Set the description to 'Offboarded 2026-09-27 ticket INC0012345 | previous: Start date 2026-10-05. Onboarded 2026-09-27 by it-ops-toolkit'
 Removed the account from CN=All-Staff,CN=Users,DC=corp,DC=itops,DC=test
 Removed the account from CN=Finance-Users,CN=Users,DC=corp,DC=itops,DC=test
 Removed the account from CN=Finance-Share-RW,CN=Users,DC=corp,DC=itops,DC=test

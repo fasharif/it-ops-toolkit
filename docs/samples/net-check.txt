@@ -1,4 +1,4 @@
-# Recorded by scripts/make-samples.sh on 2026-09-26 in the Debian 13 test container (tests/docker/Dockerfile, target test) on Docker Desktop. Docker's network layer answers ICMP itself, so the route trace is not meaningful.
+# Recorded by scripts/make-samples.sh on 2026-09-27 in the Debian 13 test container (tests/docker/Dockerfile, target test) on Docker Desktop. Docker's network layer answers ICMP itself, so the route trace is not meaningful.
 $ linux/net-check.sh --max-hops 8 www.microsoft.com
 Network check: www.microsoft.com port 443
 
@@ -6,12 +6,12 @@ Layer              Status Detail
 IP configuration   Pass   eth0: 172.17.0.3
 Default gateway    Pass   172.17.0.1 answers ping.
 DNS servers        Pass   DNS servers: 192.168.65.7.
-DNS resolution     Pass   www.microsoft.com resolves to 23.35.101.225.
-TCP port           Pass   Connected to 23.35.101.225 on port 443.
+DNS resolution     Pass   www.microsoft.com resolves to 184.30.158.70.
+TCP port           Pass   Connected to 184.30.158.70 on port 443.
 HTTPS              Pass   TLS handshake completed; the server answered with HTTP status 200.
 Route trace        Info   The trace stops after hop 1 (172.17.0.1); later hops did not answer within 8 hops.
 
-Diagnosis: No fault found: 'www.microsoft.com' resolves and port 443 accepts connections, and HTTPS answers.
+Diagnosis: No fault found: 'www.microsoft.com' resolves, port 443 accepts connections and HTTPS answers.
 (exit status 0)
 
 $ linux/net-check.sh --no-trace intranet.corp.itops.test

@@ -1,4 +1,4 @@
-# Recorded by scripts/make-samples.sh on 2026-09-26 in the Samba AD integration environment (tests/integration): a throwaway test domain on Samba 4.22.11-Debian-4.22.11+dfsg-0+deb13u1, with the scripts run in the Debian 13 client container; ITO_LDAP_URL and ITO_AUTH_FILE are set there.
+# Recorded by scripts/make-samples.sh on 2026-09-27 in the Samba AD integration environment (tests/integration): a throwaway test domain on Samba 4.22.11-Debian-4.22.11+dfsg-0+deb13u1, with the scripts run in the Debian 13 client container; ITO_LDAP_URL and ITO_AUTH_FILE are set there.
 $ linux/onboard-user.sh --csv examples/new-starters.csv --config config/onboarding.example.json --deliver-dir /srv/it-ops/deliver --deliver-cert /srv/it-ops/delivery.pem
 Row  Account               Status   Message
 1    sara.ali              Created  Created sara.ali@corp.itops.test in OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test.

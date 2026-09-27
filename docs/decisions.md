@@ -107,10 +107,10 @@ hard to test.
 function that turns layer results into advice.
 
 **Consequences.** One code path serves both editions and both operating systems. It has run for
-real in Windows PowerShell 5.1 on Windows 11 and in PowerShell 7.5 on Linux (`docs/samples`);
-PowerShell 7 on Windows and macOS have not been tried yet. The wrappers are mocked for the
-diagnosis tests and exercised for real against local sockets. `HttpWebRequest` is marked obsolete in .NET, but it is the one HTTP API present in both
-editions.
+real in Windows PowerShell 5.1 on Windows 11 and in PowerShell 7.5 and 7.6 on Linux
+(`docs/samples`); PowerShell 7 on Windows and macOS have not been tried yet. The wrappers are
+mocked for the diagnosis tests and exercised for real against local sockets. `HttpWebRequest` is
+marked obsolete in .NET, but it is the one HTTP API present in both editions.
 
 ## 7. A small Python helper for CSV parsing
 

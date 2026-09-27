@@ -21,7 +21,7 @@ function Test-ItoNetwork {
         command only reads; it changes no settings.
 
         It uses .NET networking classes rather than Windows-only cmdlets. It has been run in
-        Windows PowerShell 5.1 on Windows 11 and in PowerShell 7.5 on Linux (see docs/samples).
+        Windows PowerShell 5.1 on Windows 11 and in PowerShell 7.5 and 7.6 on Linux (see docs/samples).
         PowerShell 7 on Windows and macOS have not been tried yet.
 
     .PARAMETER ComputerName
