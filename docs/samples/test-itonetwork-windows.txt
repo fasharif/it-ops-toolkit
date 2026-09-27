@@ -1,18 +1,18 @@
-# Recorded on 2026-09-26 in Windows PowerShell 5.1.26100.9549 on a Windows 11 PC connected over Wi-Fi, with the commands shown.
+# Recorded on 2026-09-27 in Windows PowerShell 5.1.26100.9549 on a Windows 11 PC connected over Wi-Fi, with the commands shown.
 PS> Test-ItoNetwork | Select-Object -ExpandProperty Layers
 
 Layer            Status Detail
 -----            ------ ------
 IP configuration Pass   Wi-Fi: 192.168.50.112
-Default gateway  Pass   192.168.50.1 answers ping (1 ms).
-DNS servers      Pass   DNS servers: 1.1.1.1, 1.0.0.1, fec0:0:0:ffff::1%1, fec0:0:0:ffff::2%1, fec0:0:0:ffff::3%1.
+Default gateway  Pass   192.168.50.1 answers ping (2 ms).
+DNS servers      Pass   DNS servers: 1.1.1.1, 1.0.0.1.
 DNS resolution   Pass   www.microsoft.com resolves to 23.35.101.225.
 TCP port         Pass   Connected to 23.35.101.225 on port 443.
 HTTPS            Pass   TLS handshake completed; the server answered with HTTP status 200.
 Route trace      Info   Reached 23.35.101.225 in 12 hop(s).
 
 PS> (Test-ItoNetwork).Diagnosis
-No fault found: 'www.microsoft.com' resolves and port 443 accepts connections, and HTTPS answers.
+No fault found: 'www.microsoft.com' resolves, port 443 accepts connections and HTTPS answers.
 
 PS> (Test-ItoNetwork -ComputerName fileserver.corp.itops.test -Port 445 -SkipTrace).Diagnosis
 DNS works, but the name 'fileserver.corp.itops.test' does not resolve. Check the spelling. For an internal name, check that the record exists and that you are on the office network or VPN (split DNS).
