@@ -277,7 +277,7 @@ lists; see [decision 16](docs/decisions.md).
 
 ## Running the tests
 
-Everything runs in containers, so Docker is the only requirement.
+Every command except the Windows PowerShell 5.1 run works in containers and needs only Docker.
 
 | Command | What it runs |
 | --- | --- |
@@ -294,19 +294,19 @@ is installed into your PowerShell profile. Without `-Install` it uses copies you
 or stops and says what is missing. In Windows PowerShell 5.1, keep the clone's path short:
 .NET Framework cannot load Pester's DLL from a path longer than 260 characters.
 
-Results of the last full run, on 2026-09-26, from a fresh clone of the branch on a Windows 11
+Results of the last full run, on 2026-09-27, from a fresh clone of the branch on a Windows 11
 development machine with Docker Desktop (Linux containers). These are pass/fail results only; no
 timings are published.
 
 | Check | Environment | Command | Result |
 | --- | --- | --- | --- |
-| PSScriptAnalyzer 1.25.0 | PowerShell 7.5.0, `mcr.microsoft.com/powershell:7.5-ubuntu-24.04` | `scripts/test-powershell.sh` | No findings |
-| Pester 5.9.1 | Same container | `scripts/test-powershell.sh` | 203 passed, 0 failed, 0 skipped; command coverage of `src/ItOpsToolkit` 87.7% (1648 of 1880 commands) |
-| Pester 5.9.1 | Windows PowerShell 5.1.26100, Windows 11, .NET Framework 4.8 | `powershell -ExecutionPolicy Bypass -File scripts\Invoke-Tests.ps1 -Stage Test -MinimumCoverage 80`, with the pinned Pester already on `PSModulePath` | 200 passed, 0 failed, 3 skipped (see [decision 9](docs/decisions.md)); command coverage 87.3% (1642 of 1880 commands) |
+| PSScriptAnalyzer 1.25.0 | PowerShell 7.6.6, Ubuntu 24.04 test image (`tests/docker/Dockerfile`, target `powershell`) | `scripts/test-powershell.sh` | No findings |
+| Pester 5.9.1 | Same container | `scripts/test-powershell.sh` | 218 passed, 0 failed, 0 skipped; command coverage of `src/ItOpsToolkit` 88.3% (1720 of 1948 commands) |
+| Pester 5.9.1 | Windows PowerShell 5.1.26100, Windows 11, .NET Framework 4.8.1 | `powershell -ExecutionPolicy Bypass -File scripts\Invoke-Tests.ps1 -Stage Test -MinimumCoverage 80`, in a second clone at a short path, with the hash-checked Pester from the container run in `out/modules` | 215 passed, 0 failed, 3 skipped (see [decision 9](docs/decisions.md)); command coverage 88.0% (1714 of 1948 commands); [run record](docs/results/windows-powershell-5.1.txt) |
 | shellcheck 0.11.0 | `koalaman/shellcheck:v0.11.0` | `scripts/test-bash.sh` | No findings |
-| bats-core 1.14.0 | Debian 13 test image (`tests/docker/Dockerfile`, target `test`) | `scripts/test-bash.sh` | 119 passed, 0 failed |
+| bats-core 1.14.0 | Debian 13 test image (`tests/docker/Dockerfile`, target `test`) | `scripts/test-bash.sh` | 128 passed, 0 failed |
 | ruff 0.16.9, mypy 2.3.1 `--strict` | `python:3.13-slim` | `scripts/lint-python.sh` | No findings |
-| Samba AD integration | Samba 4.22.11 (Debian package 4.22.11+dfsg-0+deb13u1) AD DC and a client, Debian 13 containers | `tests/integration/run.sh` | 14 passed, 0 failed |
+| Samba AD integration | Samba 4.22.11 (Debian package 4.22.11+dfsg-0+deb13u1) AD DC and a client, Debian 13 containers | `tests/integration/run.sh` | 16 passed, 0 failed |
 | actionlint 1.7.12 | `rhysd/actionlint:1.7.12` | `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12` | No findings |
 
 Pester's coverage figure counts commands (breakpoints), not lines.
@@ -323,6 +323,7 @@ combination with no local result.
 ├── config/                     onboarding.example.json, its JSON schema, health threshold example
 ├── docs/
 │   ├── kb/                     ten help-desk articles
+│   ├── results/                a record of the Windows PowerShell 5.1 test run
 │   ├── samples/                real output from the tools, and where each file ran
 │   ├── decisions.md            design decisions
 │   └── method.md               troubleshooting method, priority matrix, ticket template
