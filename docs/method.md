@@ -123,14 +123,14 @@ user's laptop sees when an internal name is looked up without the VPN's DNS sett
 ```text
 Summary:            Remote user cannot open the finance share
 Reported by:        Sara Ali, Finance, ext. 4127 (called back on the number in the directory)
-Reported at:        2026-09-28 09:12
+Reported at:        2026-08-31 09:12 (Monday)
 Affected:           1 user, laptop PC-0142          Location: home
 Impact / Urgency:   low / high (one user; month-end close today, no workaround)   Priority: P3
 Category:           network
 
 Description:        \\fileserver.corp.itops.test\finance shows "Windows can't find
                     \\fileserver.corp.itops.test". Outlook and Teams work. Started this morning.
-What changed:       Worked from home today; in the office yesterday. Password unchanged.
+What changed:       Worked from home today; in the office on Friday. Password unchanged.
 Steps to reproduce: 1. Connect to home Wi-Fi. 2. Open File Explorer. 3. Open the finance share.
 
 Troubleshooting (layer by layer, with results):
@@ -142,7 +142,7 @@ Troubleshooting (layer by layer, with results):
        office network or VPN (split DNS).
   4. The VPN client was not connected: it had failed to start after an update overnight.
 
-Workaround:         none needed
+Workaround:         none available
 Resolution:         Restarted the VPN client service and connected. Test-ItoNetwork now resolves
                     the file server and connects on port 445; the share opens.
 Root cause:         VPN client did not start after an update, so internal names were not

@@ -1,6 +1,6 @@
 # Outlook profile and OST problems
 
-Applies to: classic Outlook for Windows (Microsoft 365 Apps, Outlook 2016 to 2021) with Exchange
+Applies to: classic Outlook for Windows (Microsoft 365 Apps, Outlook 2016 to 2024) with Exchange
 Online or Exchange Server in cached mode. The new Outlook for Windows stores data differently;
 most of the OST steps below do not apply to it.
 

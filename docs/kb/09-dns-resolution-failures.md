@@ -27,11 +27,12 @@ Applies to: Windows clients and servers, Linux with systemd-resolved or a plain
 
    ```powershell
    Get-DnsClientServerAddress -AddressFamily IPv4
-   Resolve-DnsName intranet.corp.example.com -DnsOnly
-   Resolve-DnsName intranet.corp.example.com -Server 10.1.0.10 -DnsOnly   # ask a specific server
+   Resolve-DnsName intranet.corp.example.com -DnsOnly -NoHostsFile
+   Resolve-DnsName intranet.corp.example.com -Server 10.1.0.10 -DnsOnly -NoHostsFile   # ask a specific server
    ```
 
-   `-DnsOnly` skips the hosts file and NetBIOS, so the answer comes from DNS.
+   `-DnsOnly` uses the DNS protocol only (no LLMNR or NetBIOS), and `-NoHostsFile` ignores the
+   hosts file, so the answer comes from the DNS servers.
 3. Look for local overrides: the hosts file (`C:\Windows\System32\drivers\etc\hosts`), cached
    answers (`Get-DnsClientCache`), and name resolution rules pushed by a VPN
    (`Get-DnsClientNrptPolicy`).
