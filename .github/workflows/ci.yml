@@ -23,12 +23,15 @@ jobs:
       - name: Analyse and test
         shell: pwsh
         run: ./scripts/Invoke-Tests.ps1 -Install -MinimumCoverage 80
+      # Only the NUnit and coverage files: out/modules holds the downloaded test modules (about 290 MB).
       - name: Keep test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: pester-linux
-          path: out/
+          path: |
+            out/pester-*.xml
+            out/coverage-*.xml
           if-no-files-found: ignore
 
   powershell-windows:
@@ -48,7 +51,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: pester-windows
-          path: out/
+          path: |
+            out/pester-*.xml
+            out/coverage-*.xml
           if-no-files-found: ignore
 
   bash:
