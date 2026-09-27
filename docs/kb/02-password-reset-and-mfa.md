@@ -33,9 +33,18 @@ $password = New-ItoRandomPassword
 Set-ADAccountPassword -Identity sara.ali -Reset -NewPassword $password
 Set-ADUser -Identity sara.ali -ChangePasswordAtLogon $true
 Unlock-ADAccount -Identity sara.ali
-# Read the password once, to give it to the verified user by phone or another separate channel:
-[System.Net.NetworkCredential]::new('', $password).Password
+# Show the password once, in a dialog box, to give it to the verified user by phone or another
+# separate channel:
+Add-Type -AssemblyName PresentationFramework
+$null = [System.Windows.MessageBox]::Show([System.Net.NetworkCredential]::new('', $password).Password, 'New password for sara.ali')
+Remove-Variable -Name password
 ```
+
+The dialog box keeps the password off the console on purpose. Many organisations turn on
+PowerShell transcription by Group Policy, and a transcript saves everything the console shows to
+a file. The password goes to a .NET method, not to a command parameter, so module logging does
+not record it either. The dialog box needs a desktop session: on Server Core, run the commands
+from an administrative workstation with RSAT.
 
 Do not send the password by email or chat, and do not write it in the ticket.
 
