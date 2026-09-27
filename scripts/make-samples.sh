@@ -28,7 +28,6 @@ fi
 samples=docs/samples
 today=$(date -u +%Y-%m-%d)
 image=${ITO_TEST_IMAGE:-it-ops-toolkit-test}
-powershell_image=mcr.microsoft.com/powershell:7.5-ubuntu-24.04
 
 SAMBA_ADMIN_PASSWORD="It-$(od -An -N12 -tx1 /dev/urandom | tr -d ' \n')-Aa1!"
 export SAMBA_ADMIN_PASSWORD
@@ -118,9 +117,12 @@ container_note="# Recorded by scripts/make-samples.sh on $today in the Debian 13
 } | sed -e '$ { /^$/d }' >"$samples/net-check.txt"
 
 echo '==> Test-ItoNetwork in PowerShell 7 on Linux'
+# The same image as scripts/test-powershell.sh: tests/docker/Dockerfile, target powershell.
+docker build --quiet -f tests/docker/Dockerfile --target powershell -t "$image:powershell" . >/dev/null
+powershell_version=$(docker run --rm --memory 256m "$image:powershell" -Command '$PSVersionTable.PSVersion.ToString()')
 {
-    printf '# Recorded by scripts/make-samples.sh on %s in PowerShell 7.5 (%s container) on Linux.\n' "$today" "$powershell_image"
-    docker run --rm --memory 512m -v "$root:/work:ro" -w /work "$powershell_image" pwsh -NoProfile -Command '
+    printf '# Recorded by scripts/make-samples.sh on %s in PowerShell %s on Linux, in the Ubuntu 24.04 test container (tests/docker/Dockerfile, target powershell).\n' "$today" "$powershell_version"
+    docker run --rm --memory 512m -v "$root:/work:ro" -w /work "$image:powershell" -Command '
         Import-Module ./src/ItOpsToolkit/ItOpsToolkit.psd1
         "PS> Test-ItoNetwork -SkipTrace | Select-Object -ExpandProperty Layers"
         Test-ItoNetwork -SkipTrace | Select-Object -ExpandProperty Layers | Format-Table -AutoSize | Out-String -Width 200

@@ -182,12 +182,16 @@ report says why for each one.
 with the SHA-256 of their packages; with `-Install` the runner downloads them from the PowerShell
 Gallery, checks the hash and unpacks them into `out/modules`, so nothing is installed into the
 user's profile. bats-core 1.14.0 and its libraries are pinned by tag and SHA-256 in
-`tests/docker/Dockerfile`, the Debian base image is pinned by digest, ruff and mypy are pinned
-with hashes in `requirements-dev.txt`, and other container images use explicit tags. The Samba
-packages come from Debian 13 when the image is built, so `tests/integration/run.sh` prints the
-Samba version each run tested. Dependabot updates GitHub Actions, the Dockerfile base image and
-the Python tools. The Pester, PSScriptAnalyzer and bats versions, and the image tags in scripts,
-are updated by hand. Pester 6 exists; staying on Pester 5 was a stated requirement.
+`tests/docker/Dockerfile`, the Debian and Ubuntu base images are pinned by digest, ruff and mypy
+are pinned with hashes in `requirements-dev.txt`, and other container images use explicit tags.
+The Samba packages come from Debian 13 when the image is built, so `tests/integration/run.sh`
+prints the Samba version each run tested. PowerShell for the container tests is 7.6.6, the
+current LTS release, installed from Microsoft's `.deb` package pinned by version and SHA-256.
+Microsoft's own container image was not used: its registry has no 7.6 tag, and its
+`7.5-ubuntu-24.04` tag still held 7.5.0 from January 2025. Dependabot updates GitHub Actions, the
+Dockerfile base images and the Python tools. The Pester, PSScriptAnalyzer, bats and PowerShell
+versions, and the image tags in scripts, are updated by hand. Pester 6 exists; staying on
+Pester 5 was a stated requirement.
 
 **Consequences.** Some updates need a person to check release notes, which is intended. An
 earlier version of the runner installed missing modules into the user's profile, and did so on

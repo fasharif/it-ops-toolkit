@@ -271,7 +271,7 @@ Everything runs in containers, so Docker is the only requirement.
 
 | Command | What it runs |
 | --- | --- |
-| `scripts/test-powershell.sh` | PSScriptAnalyzer and the Pester suite in `mcr.microsoft.com/powershell:7.5-ubuntu-24.04` |
+| `scripts/test-powershell.sh` | PSScriptAnalyzer and the Pester suite in PowerShell 7.6 LTS, in the Ubuntu 24.04 test image (`tests/docker/Dockerfile`, target `powershell`) |
 | `scripts/test-bash.sh` | shellcheck, then the bats unit tests in the Debian 13 test image |
 | `scripts/lint-python.sh` | ruff and `mypy --strict` for `linux/lib/hrfeed.py` |
 | `tests/integration/run.sh` | Starts a Samba AD DC and runs onboarding and offboarding against it, then removes it |
@@ -323,7 +323,7 @@ combination with no local result.
 ├── src/ItOpsToolkit/           the PowerShell module (Public/ and Private/ functions)
 └── tests/
     ├── bats/                   bats unit tests and fake Samba tools
-    ├── docker/Dockerfile       test images: tools, test (bats), dc (Samba AD)
+    ├── docker/Dockerfile       test images: tools, test (bats), dc (Samba AD), powershell (Pester)
     ├── fixtures/               account-name, feed-row and bad-configuration cases shared by Pester and bats
     ├── integration/            Samba AD integration tests (compose.yaml, run.sh)
     └── powershell/             Pester tests and ActiveDirectory stubs

@@ -14,15 +14,13 @@ concurrency:
 
 jobs:
   powershell:
-    name: PowerShell 7 (PSScriptAnalyzer and Pester, container)
+    name: PowerShell 7.6 LTS (PSScriptAnalyzer and Pester, container)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    container: mcr.microsoft.com/powershell:7.5-ubuntu-24.04
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - name: Analyse and test
-        shell: pwsh
-        run: ./scripts/Invoke-Tests.ps1 -Install -MinimumCoverage 80
+        run: ./scripts/test-powershell.sh
       # Only the NUnit and coverage files: out/modules holds the downloaded test modules (about 290 MB).
       - name: Keep test results
         if: always()

@@ -12,8 +12,9 @@
     the PowerShell Gallery, checks its pinned SHA-256 hash and unpacks it into ./out/modules.
     Nothing is installed outside the repository, and PSModulePath changes only for this process.
 
-    CI and scripts/test-powershell.sh run this inside the mcr.microsoft.com/powershell container
-    with -Install. On Windows it also runs in Windows PowerShell 5.1:
+    CI and scripts/test-powershell.sh run this with -Install in a container with PowerShell 7.6
+    LTS (tests/docker/Dockerfile, target powershell). On Windows it also runs in Windows
+    PowerShell 5.1:
     powershell -ExecutionPolicy Bypass -File scripts\Invoke-Tests.ps1 -Stage Test -Install
 
 .PARAMETER Stage
