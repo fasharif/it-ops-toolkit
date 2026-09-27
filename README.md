@@ -8,6 +8,33 @@ base to match.
 
 ## Sample output
 
+A health report from `Get-ItoHealthReport` in Windows PowerShell 5.1 on a Windows 11 PC. It ran
+without administrator rights, so BitLocker is Unknown, while the PC was busy with container
+builds, hence the memory Warning. The computer name and three third-party service names were
+removed before publishing. The report itself: [HTML](docs/samples/windows-health-report.html),
+[JSON](docs/samples/windows-health-report.json).
+
+![The health report in a browser: overall status Warning, eight checks with status, value, threshold and advice, and a table of stopped automatic services](docs/samples/windows-health-report.png)
+
+A network check on the same PC, ending in a plain-language diagnosis:
+
+```text
+PS> Test-ItoNetwork | Select-Object -ExpandProperty Layers
+
+Layer            Status Detail
+-----            ------ ------
+IP configuration Pass   Wi-Fi: 192.168.50.112
+Default gateway  Pass   192.168.50.1 answers ping (2 ms).
+DNS servers      Pass   DNS servers: 1.1.1.1, 1.0.0.1.
+DNS resolution   Pass   www.microsoft.com resolves to 23.35.101.225.
+TCP port         Pass   Connected to 23.35.101.225 on port 443.
+HTTPS            Pass   TLS handshake completed; the server answered with HTTP status 200.
+Route trace      Info   Reached 23.35.101.225 in 12 hop(s).
+
+PS> (Test-ItoNetwork -ComputerName fileserver.corp.itops.test -Port 445 -SkipTrace).Diagnosis
+DNS works, but the name 'fileserver.corp.itops.test' does not resolve. Check the spelling. For an internal name, check that the record exists and that you are on the office network or VPN (split DNS).
+```
+
 Onboarding the example HR feed ([examples/new-starters.csv](examples/new-starters.csv)) into a
 real Samba Active Directory domain controller: the throwaway test domain of the integration
 tests, in Docker. Two people called Sara Ali get different account names, accents and
@@ -25,32 +52,10 @@ Row  Account               Status   Message
 Onboarding summary: 5 created.
 ```
 
-A network check in Windows PowerShell 5.1 on a Windows 11 PC, ending in a plain-language
-diagnosis:
-
-```text
-PS> Test-ItoNetwork | Select-Object -ExpandProperty Layers
-
-Layer            Status Detail
------            ------ ------
-IP configuration Pass   Wi-Fi: 192.168.50.112
-Default gateway  Pass   192.168.50.1 answers ping (1 ms).
-DNS servers      Pass   DNS servers: 1.1.1.1, 1.0.0.1, fec0:0:0:ffff::1%1, fec0:0:0:ffff::2%1, fec0:0:0:ffff::3%1.
-DNS resolution   Pass   www.microsoft.com resolves to 23.35.101.225.
-TCP port         Pass   Connected to 23.35.101.225 on port 443.
-HTTPS            Pass   TLS handshake completed; the server answered with HTTP status 200.
-Route trace      Info   Reached 23.35.101.225 in 12 hop(s).
-
-PS> (Test-ItoNetwork -ComputerName fileserver.corp.itops.test -Port 445 -SkipTrace).Diagnosis
-DNS works, but the name 'fileserver.corp.itops.test' does not resolve. Check the spelling. For an internal name, check that the record exists and that you are on the office network or VPN (split DNS).
-```
-
 More real output is in [docs/samples](docs/samples/README.md), which says where each file ran:
-offboarding against the Samba test domain, `Test-ItoNetwork` in PowerShell 7 on Linux, the Linux
-health report and Born2beRoot summary (from the Debian test container, not a server), and a
-Windows health report as [HTML](docs/samples/windows-health-report.html) and
-[JSON](docs/samples/windows-health-report.json) (computer name and three third-party service
-names removed before publishing). `scripts/make-samples.sh` regenerates the Linux samples.
+offboarding against the Samba test domain, `Test-ItoNetwork` in PowerShell 7.6 on Linux, and the
+Linux health report and Born2beRoot summary (from the Debian test container, not a server).
+`scripts/make-samples.sh` regenerates the Linux samples.
 
 ## The problem it solves
 
