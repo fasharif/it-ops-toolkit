@@ -69,7 +69,11 @@ of the same tickets.
 ## Features
 
 **PowerShell module `ItOpsToolkit`** (Windows PowerShell 5.1 and PowerShell 7; comment-based help,
-parameter validation and `-WhatIf`/`-Confirm` on everything that changes state):
+parameter validation and `-WhatIf`/`-Confirm` on everything that changes state). The three Active
+Directory functions, `New-ItoUser`, `Remove-ItoUser` and `Get-ItoLockoutSource`, are tested with
+Pester mocks only and have not yet run against a Windows Server domain (see
+[Limitations](#limitations-and-roadmap)); the Bash versions of onboarding and offboarding run
+against a real Samba AD domain controller in the integration tests.
 
 - `New-ItoUser` creates Active Directory accounts from an HR feed CSV: department-to-OU and group
   mapping from JSON, unique `sAMAccountName` generation (first.last or flast, at most 20
@@ -77,9 +81,10 @@ parameter validation and `-WhatIf`/`-Confirm` on everything that changes state):
   optional Latin spelling for names in Arabic or other scripts), a strong random
   initial password delivered only as a CMS-encrypted file (to a certificate file, object or
   thumbprint) or a `SecureString`, "must change password at next logon", and a CSV summary. The
-  password never passes through a command parameter, so PowerShell module logging cannot record
-  it. Rows already onboarded (same employee ID) are skipped, with a warning for any configured
-  group the existing account lacks. One domain controller is used for the whole run.
+  password is passed to commands only as a `SecureString`, never as plain text, so PowerShell
+  module logging records no more than the type name. Rows already onboarded (same employee ID)
+  are skipped, with a warning for any configured group the existing account lacks. One domain
+  controller is used for the whole run.
 - `Remove-ItoUser` offboards a leaver: exports group memberships for audit first, disables the
   account, records the ticket number in the description, removes groups and moves the account to
   the disabled users OU. Each step checks the current state, so a second run changes nothing.
@@ -160,7 +165,7 @@ and bad configurations ([tests/fixtures/invalid-configs.tsv](tests/fixtures/inva
 | Windows automation | PowerShell module, Windows PowerShell 5.1 and PowerShell 7 | What Windows help desks already run; the `ActiveDirectory` module is the supported way to manage AD |
 | Linux automation | Bash, `samba-tool`, ldb tools, `jq` | Available on any Samba administration host; no extra runtime |
 | CSV parsing on Linux | Python 3 standard library (`linux/lib/hrfeed.py`) | Bash has no reliable CSV parser; Python is already required by `samba-tool` |
-| Password delivery | CMS encryption (.NET `EnvelopedCms`, `openssl cms`) | Standard format that `Unprotect-CmsMessage` and `openssl cms` both read; only the certificate holder can decrypt; the password never passes through a command parameter, so module logging cannot record it |
+| Password delivery | CMS encryption (.NET `EnvelopedCms`, `openssl cms`) | Standard format that `Unprotect-CmsMessage` and `openssl cms` both read; only the certificate holder can decrypt; the password is encrypted through .NET method calls and passed to commands only as a `SecureString`, so module logging cannot record it |
 | Network checks | .NET `System.Net` classes | One code path for Windows and Linux, testable without Windows-only cmdlets |
 | Tests | Pester 5, bats-core, a Samba AD DC in Docker | Unit tests with mocks and fakes, plus a real directory for the Bash scripts |
 | Linting | PSScriptAnalyzer, shellcheck, ruff, mypy `--strict`, actionlint | One linter per language, all clean |
@@ -334,7 +339,7 @@ combination with no local result.
 The main choices, with their reasons and trade-offs, are in [docs/decisions.md](docs/decisions.md).
 In short: one configuration for both platforms, with the same case-sensitive rules; Pester mocks
 for the AD module (Samba has no ADWS) and a real Samba DC for the Bash scripts; passwords only
-ever leave the tools encrypted, and never pass through a command parameter; Samba accounts
+ever leave the tools encrypted, and are passed to commands only as a `SecureString`; Samba accounts
 created in one atomic `ldbadd`; .NET networking, so `Test-ItoNetwork` has one code path for both
 editions and operating systems; idempotent onboarding and offboarding; one domain controller per
 run; accounts created enabled before the start date, with the trade-off explained; Windows
@@ -358,8 +363,9 @@ PowerShell 5.1 compatibility tested rather than assumed.
   (the second step of the `powershell-windows` job), because this machine has no PowerShell 7.
   It runs on the first push.
 - **PowerShell module logging.** The tests show that the initial password never passes through
-  a command parameter, using a `ParameterBinding` trace, which sees the same values as module
-  logging (event 4103). Module logging itself was not switched on, because that is a system
+  a command parameter as plain text (only as a `SecureString`, which logging shows as its type
+  name), using a `ParameterBinding` trace, which sees the same values as module logging
+  (event 4103). Module logging itself was not switched on, because that is a system
   policy change. To check it: on a test machine, enable module logging for all modules
   (Group Policy: Windows Components > Windows PowerShell > Turn on Module Logging, module name
   `*`), run `New-ItoUser` with `-DeliveryPath`, decrypt the delivery file, and search the
