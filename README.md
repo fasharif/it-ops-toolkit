@@ -339,11 +339,11 @@ combination with no local result.
 The main choices, with their reasons and trade-offs, are in [docs/decisions.md](docs/decisions.md).
 In short: one configuration for both platforms, with the same case-sensitive rules; Pester mocks
 for the AD module (Samba has no ADWS) and a real Samba DC for the Bash scripts; passwords only
-ever leave the tools encrypted, and are passed to commands only as a `SecureString`; Samba accounts
-created in one atomic `ldbadd`; .NET networking, so `Test-ItoNetwork` has one code path for both
-editions and operating systems; idempotent onboarding and offboarding; one domain controller per
-run; accounts created enabled before the start date, with the trade-off explained; Windows
-PowerShell 5.1 compatibility tested rather than assumed.
+ever leave the tools encrypted, and are passed to commands only as a `SecureString`; Samba
+accounts created in one atomic `ldbadd`; .NET networking, so `Test-ItoNetwork` has one code path
+for both editions and operating systems; idempotent onboarding and offboarding; one domain
+controller per run; accounts created enabled before the start date, with the trade-off
+explained; Windows PowerShell 5.1 compatibility tested rather than assumed.
 
 ## Limitations and roadmap
 

@@ -49,13 +49,13 @@ in the PowerShell module, `openssl cms` on Linux. The module does not call
 `Protect-CmsMessage`: PowerShell module logging (event 4103) records the value of every command
 parameter, so `-Content` would put the password in the event log wherever that logging is
 enabled. The password goes from a `SecureString` to a byte array that is cleared afterwards,
-through method calls only. Where the password is passed to a command (`New-ADUser
--AccountPassword` and the module's own delivery functions), it is a `SecureString`, which module
-logging records only as its type name, `System.Security.SecureString`. The PowerShell result
-object also carries the password as a `SecureString`. Tests check that the password never appears in output streams, transcripts,
-summaries, command lines, tool errors or a `ParameterBinding` trace, which sees the same
-parameter values as module logging. Module logging itself was not switched on for the tests,
-because that is a system policy change.
+through method calls only. Where the password is passed to a command (`New-ADUser` and the
+module's own delivery functions), it is a `SecureString`, which module logging records only as
+its type name, `System.Security.SecureString`. The PowerShell result object also carries the
+password as a `SecureString`. Tests check that the password never appears in output streams,
+transcripts, summaries, command lines, tool errors or a `ParameterBinding` trace, which sees the
+same parameter values as module logging. Module logging itself was not switched on for the
+tests, because that is a system policy change.
 
 **Consequences.** The service desk needs a certificate with an RSA key and the Document
 Encryption enhanced key usage, and its private key to read the files (`Unprotect-CmsMessage` or
