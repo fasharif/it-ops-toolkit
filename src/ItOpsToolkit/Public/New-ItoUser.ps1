@@ -375,9 +375,9 @@ function New-ItoUser {
         # scripts that hand the SecureString on themselves, but says where the passwords are.
         $createdCount = @($results | Where-Object { $_.Status -eq 'Created' }).Count
         if (-not $hasDeliveryPath -and $createdCount -gt 0) {
-            $message = '{0} account(s) were created without -DeliveryPath, so their initial passwords exist only on the InitialPassword property (a SecureString) of the results. ' +
+            $message = ('{0} account(s) were created without -DeliveryPath, so their initial passwords exist only on the InitialPassword property (a SecureString) of the results. ' +
                 'If the results were not kept, for example with $results = New-ItoUser ..., reset those passwords before handing the accounts over. ' +
-                'Use -DeliveryPath and -DeliveryCertificate to write encrypted delivery files.'
+                'Use -DeliveryPath and -DeliveryCertificate to write encrypted delivery files.')
             Write-Warning ($message -f $createdCount)
         }
 
