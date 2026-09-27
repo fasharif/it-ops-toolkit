@@ -209,7 +209,8 @@ installed on the machine it ran on.
 onboarding and offboarding against the throwaway Samba domain with exactly the commands shown.
 The Windows samples are recorded by hand with the commands listed in `docs/samples/README.md`.
 For the Windows health report, the computer name and the names of three third-party services
-were replaced with marked placeholders before publishing; nothing else was edited.
+were replaced with marked placeholders before publishing; nothing else was edited. GitHub shows
+an `.html` file as source code, so the README shows a screenshot of the edited report.
 
 **Consequences.** The samples show what the tools print, where, and exactly what was removed. A
 sample from a container shows container facts (a WSL 2 kernel, no systemd, no LVM), and says so
