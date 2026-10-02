@@ -76,7 +76,7 @@ RUN apt-get update \
 COPY tests/integration/samba-dc-entrypoint.sh /usr/local/sbin/samba-dc-entrypoint
 ENTRYPOINT ["/usr/local/sbin/samba-dc-entrypoint"]
 
-FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3 AS powershell
+FROM ubuntu:25.10@sha256:7cc5e35f6567ee8c66d2abb4aab0fd866669e6207c237c3a8f0947a5c7f17092 AS powershell
 ARG DEBIAN_FRONTEND=noninteractive
 ARG POWERSHELL_VERSION=7.6.6
 ARG POWERSHELL_SHA256=9585f38ab5a026c3fc0995486e26e12050777960fef47a22dca98b577c5d27a7
