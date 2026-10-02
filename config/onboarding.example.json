@@ -1,0 +1,26 @@
+{
+  "$schema": "./onboarding.schema.json",
+  "$comment": "Shared by New-ItoUser, Remove-ItoUser, onboard-user.sh and offboard-user.sh. Copy to onboarding.json and change the names to match your directory.",
+  "upnSuffix": "corp.itops.test",
+  "samAccountNameFormat": "first.last",
+  "disabledOu": "OU=Disabled Users,DC=corp,DC=itops,DC=test",
+  "defaultGroups": ["All-Staff"],
+  "departments": {
+    "Finance": {
+      "ou": "OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test",
+      "groups": ["Finance-Users", "Finance-Share-RW"]
+    },
+    "Human Resources": {
+      "ou": "OU=Human Resources,OU=Staff,DC=corp,DC=itops,DC=test",
+      "groups": ["HR-Users", "HR-Share-RW"]
+    },
+    "IT": {
+      "ou": "OU=IT,OU=Staff,DC=corp,DC=itops,DC=test",
+      "groups": ["IT-Users", "IT-Helpdesk"]
+    },
+    "Sales": {
+      "ou": "OU=Sales,OU=Staff,DC=corp,DC=itops,DC=test",
+      "groups": ["Sales-Users", "CRM-Users"]
+    }
+  }
+}

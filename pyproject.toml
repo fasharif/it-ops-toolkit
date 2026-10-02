@@ -1,0 +1,14 @@
+# Tool settings for the one Python file in this repository, linux/lib/hrfeed.py.
+# It is not a package; see requirements-dev.in for the lint tools.
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "N", "ANN", "RUF", "PL"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["linux/lib/hrfeed.py"]

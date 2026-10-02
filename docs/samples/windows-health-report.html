@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Health report: (computer name removed)</title>
+<style>
+body { font-family: "Segoe UI", system-ui, sans-serif; margin: 2rem; color: #1f2328; background: #ffffff; }
+h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+h2 { font-size: 1.15rem; margin-top: 2rem; }
+p.meta { color: #57606a; margin-top: 0; }
+table { border-collapse: collapse; width: 100%; margin-top: 0.75rem; }
+th, td { border: 1px solid #d0d7de; padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; font-size: 0.92rem; }
+th { background: #f6f8fa; }
+.status { display: inline-block; min-width: 5.5rem; padding: 0.1rem 0.5rem; border-radius: 0.3rem; font-weight: 600; text-align: center; }
+.status-OK { background: #dafbe1; color: #116329; }
+.status-Warning { background: #fff8c5; color: #7d4e00; }
+.status-Critical { background: #ffebe9; color: #a40e26; }
+.status-Unknown { background: #eaeef2; color: #424a53; }
+.overall { font-size: 1.05rem; }
+footer { margin-top: 2rem; color: #57606a; font-size: 0.85rem; }</style>
+</head>
+<body>
+<h1>Health report: (computer name removed)</h1>
+<p class="meta">Generated 2026-09-27T19:25:26Z (UTC) by ItOpsToolkit 0.1.0. Events window: last 24 hours.</p>
+<p class="overall">Overall status: <span class="status status-Warning">Warning</span></p>
+<table>
+<thead><tr><th scope="col">Check</th><th scope="col">Status</th><th scope="col">Value</th><th scope="col">Threshold</th><th scope="col">What to do</th></tr></thead>
+<tbody>
+<tr><td>Disk space C:</td><td><span class="status status-OK">OK</span></td><td>33.4% free (150.3 GB of 449.6 GB)</td><td>Warning below 20% free, critical below 10% free</td><td></td></tr>
+<tr><td>Memory</td><td><span class="status status-Warning">Warning</span></td><td>89.1% used (1.7 GB free of 15.2 GB)</td><td>Warning at 85% used, critical at 95% used</td><td>Open Task Manager, sort by Memory, and close or restart the heaviest applications. Repeated high use points to a memory upgrade.</td></tr>
+<tr><td>Uptime</td><td><span class="status status-OK">OK</span></td><td>0.0 days (last boot 2026-09-27 22:25)</td><td>Warning at 14 days, critical at 30 days</td><td></td></tr>
+<tr><td>Pending reboot</td><td><span class="status status-OK">OK</span></td><td>No reboot pending</td><td>Warning when a reboot is pending</td><td></td></tr>
+<tr><td>Automatic services</td><td><span class="status status-OK">OK</span></td><td>No essential service is stopped and no automatic service stopped with an error</td><td>Warning at 1, critical at 5 automatic services that stopped with an error or never started, or are essential (Dhcp, Dnscache, EventLog, LanmanWorkstation, mpssvc, Spooler, Winmgmt) and stopped for any reason (other clean stops, trigger-start and ignored services, and delayed-start services in the first 10 minutes after boot, are not counted)</td><td>For information, not counted: 3 automatic service(s) stopped cleanly (exit code 0), which is usual for services that stop once their work is done: (third-party service A), (third-party service B), (third-party service C).</td></tr>
+<tr><td>Critical events</td><td><span class="status status-OK">OK</span></td><td>No critical events in the last 24 hours</td><td>Warning at 1 event(s), critical at 5 (System and Application logs, level Critical)</td><td></td></tr>
+<tr><td>Last update installed</td><td><span class="status status-OK">OK</span></td><td>KB5124010 installed 2026-09-24 (3 days ago)</td><td>Warning after 35 days, critical after 60 days</td><td></td></tr>
+<tr><td>BitLocker</td><td><span class="status status-Unknown">Unknown</span></td><td></td><td>OS drive protection should be On (status when Off: Warning)</td><td>BitLocker status could not be read (Access denied). Run the report as an administrator.</td></tr>
+</tbody>
+</table>
+<h2>Stopped automatic services</h2>
+<table>
+<thead><tr><th scope="col">Name</th><th scope="col">Display name</th><th scope="col">State</th><th scope="col">Exit code</th><th scope="col">Counted</th></tr></thead>
+<tbody>
+<tr><td>(third-party service A)</td><td>(third-party service A, name removed)</td><td>Stopped</td><td>0</td><td>No: stopped cleanly, for information</td></tr>
+<tr><td>(third-party service B)</td><td>(third-party service B, name removed)</td><td>Stopped</td><td>0</td><td>No: stopped cleanly, for information</td></tr>
+<tr><td>(third-party service C)</td><td>(third-party service C, name removed)</td><td>Stopped</td><td>0</td><td>No: stopped cleanly, for information</td></tr>
+</tbody>
+</table>
+<h2>How to read this report</h2>
+<p>OK means within the threshold. Warning means someone should look at it this week. Critical means act now. Unknown means the check could not run; the reason is in the last column.</p>
+<footer>Thresholds can be changed with a JSON file passed to Get-ItoHealthReport -ThresholdPath.</footer>
+</body>
+</html>

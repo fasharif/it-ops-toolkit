@@ -1,0 +1,36 @@
+# Recorded by scripts/make-samples.sh on 2026-09-27 in the Debian 13 test container (tests/docker/Dockerfile, target test) on Docker Desktop, hostname it-ops-test. It is a container, not a server: there is no systemd, LVM or LUKS, which is why some checks are Unknown.
+$ linux/health-report.sh
+Health report for it-ops-test
+Generated 2026-09-27T19:23:27Z by it-ops-toolkit health-report.sh
+Overall status: Unknown
+
+Check                      Status    Value
+Disk space /               OK        92.5% free (883.5 GB of 1006.9 GB)
+Disk space /work           OK        33.4% free (150.3 GB of 449.6 GB)
+Memory                     OK        34.0% used (4.9 GB free of 7.4 GB)
+Uptime                     OK        0.0 days
+Pending reboot             OK        No reboot-required flag is set
+Failed systemd units       Unknown   -
+Critical journal entries   Unknown   -
+Last package update        OK        No upgrade since the dpkg logs began on 2026-09-25 (2 days ago)
+Disk encryption            Unknown   -
+
+Notes:
+- Failed systemd units: systemd is not running here (for example inside a container).
+- Critical journal entries: The systemd journal is not available here (for example inside a container).
+- Disk encryption: The root filesystem is not a block device (overlay), so encryption cannot be checked here.
+(exit status 3)
+
+$ linux/monitoring.sh --stdout
+#Architecture: Linux it-ops-test 6.18.33.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun 18 21:54:43 UTC 2026 x86_64 GNU/Linux
+#CPU physical : 1
+#vCPU : 16
+#Memory Usage: 2586/7559MB (34.22%)
+#Disk Usage: 73845/1007Gb (7%)
+#CPU load: 30.6%
+#Last boot: 2026-09-27 19:02
+#LVM use: no
+#Connections TCP : 0 ESTABLISHED
+#User log: 0
+#Network: IP 172.17.0.3 (7e:6e:78:15:12:0c)
+#Sudo : 0 cmd

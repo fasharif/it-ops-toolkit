@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  powershell:
+    name: PowerShell 7.6 LTS (PSScriptAnalyzer and Pester, container)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - name: Analyse and test
+        run: ./scripts/test-powershell.sh
+      # Only the NUnit and coverage files: out/modules holds the downloaded test modules (about 290 MB).
+      - name: Keep test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pester-linux
+          path: |
+            out/pester-*.xml
+            out/coverage-*.xml
+          if-no-files-found: ignore
+
+  powershell-windows:
+    name: Pester on Windows PowerShell 5.1 and PowerShell 7
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Windows PowerShell 5.1
+        shell: powershell
+        run: .\scripts\Invoke-Tests.ps1 -Stage Test -Install -MinimumCoverage 80
+      - name: PowerShell 7
+        shell: pwsh
+        run: .\scripts\Invoke-Tests.ps1 -Stage Test -Install -MinimumCoverage 80
+      - name: Keep test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pester-windows
+          path: |
+            out/pester-*.xml
+            out/coverage-*.xml
+          if-no-files-found: ignore
+
+  bash:
+    name: Bash (shellcheck and bats)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint and test
+        run: ./scripts/test-bash.sh
+
+  python:
+    name: Python helper (ruff and mypy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint and type-check
+        run: ./scripts/lint-python.sh
+
+  integration:
+    name: Samba AD integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - name: Onboard and offboard against a Samba AD domain controller
+        run: ./tests/integration/run.sh
+
+  workflows:
+    name: Workflow lint (actionlint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color

@@ -1,0 +1,3 @@
+# Follow "source" statements relative to each script, so lib/*.sh is checked in context.
+external-sources=true
+source-path=SCRIPTDIR

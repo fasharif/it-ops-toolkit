@@ -1,0 +1,161 @@
+{
+    "ComputerName":  "(computer name removed)",
+    "GeneratedAtUtc":  "2026-09-27T19:25:26Z",
+    "ToolkitVersion":  "0.1.0",
+    "EventWindowHours":  24,
+    "OverallStatus":  "Warning",
+    "Checks":  [
+                   {
+                       "Name":  "Disk space C:",
+                       "Category":  "Storage",
+                       "Status":  "OK",
+                       "Value":  "33.4% free (150.3 GB of 449.6 GB)",
+                       "Threshold":  "Warning below 20% free, critical below 10% free",
+                       "Detail":  "",
+                       "Data":  {
+                                    "Drive":  "C:",
+                                    "FreePercent":  33.4,
+                                    "FreeBytes":  161429127168,
+                                    "SizeBytes":  482783596544
+                                }
+                   },
+                   {
+                       "Name":  "Memory",
+                       "Category":  "Performance",
+                       "Status":  "Warning",
+                       "Value":  "89.1% used (1.7 GB free of 15.2 GB)",
+                       "Threshold":  "Warning at 85% used, critical at 95% used",
+                       "Detail":  "Open Task Manager, sort by Memory, and close or restart the heaviest applications. Repeated high use points to a memory upgrade.",
+                       "Data":  {
+                                    "UsedPercent":  89.1,
+                                    "TotalKB":  15987804,
+                                    "FreeKB":  1742624
+                                }
+                   },
+                   {
+                       "Name":  "Uptime",
+                       "Category":  "Maintenance",
+                       "Status":  "OK",
+                       "Value":  "0.0 days (last boot 2026-09-27 22:25)",
+                       "Threshold":  "Warning at 14 days, critical at 30 days",
+                       "Detail":  "",
+                       "Data":  {
+                                    "UptimeDays":  0,
+                                    "LastBootUpTime":  "2026-09-27T22:25:05.5000000+04:00"
+                                }
+                   },
+                   {
+                       "Name":  "Pending reboot",
+                       "Category":  "Maintenance",
+                       "Status":  "OK",
+                       "Value":  "No reboot pending",
+                       "Threshold":  "Warning when a reboot is pending",
+                       "Detail":  "",
+                       "Data":  {
+                                    "Reasons":  [
+
+                                                ]
+                                }
+                   },
+                   {
+                       "Name":  "Automatic services",
+                       "Category":  "Services",
+                       "Status":  "OK",
+                       "Value":  "No essential service is stopped and no automatic service stopped with an error",
+                       "Threshold":  "Warning at 1, critical at 5 automatic services that stopped with an error or never started, or are essential (Dhcp, Dnscache, EventLog, LanmanWorkstation, mpssvc, Spooler, Winmgmt) and stopped for any reason (other clean stops, trigger-start and ignored services, and delayed-start services in the first 10 minutes after boot, are not counted)",
+                       "Detail":  "For information, not counted: 3 automatic service(s) stopped cleanly (exit code 0), which is usual for services that stop once their work is done: (third-party service A), (third-party service B), (third-party service C).",
+                       "Data":  [
+                                    {
+                                        "Name":  "(third-party service A)",
+                                        "DisplayName":  "(third-party service A, name removed)",
+                                        "State":  "Stopped",
+                                        "ExitCode":  0,
+                                        "Reason":  "StoppedCleanly"
+                                    },
+                                    {
+                                        "Name":  "(third-party service B)",
+                                        "DisplayName":  "(third-party service B, name removed)",
+                                        "State":  "Stopped",
+                                        "ExitCode":  0,
+                                        "Reason":  "StoppedCleanly"
+                                    },
+                                    {
+                                        "Name":  "(third-party service C)",
+                                        "DisplayName":  "(third-party service C, name removed)",
+                                        "State":  "Stopped",
+                                        "ExitCode":  0,
+                                        "Reason":  "StoppedCleanly"
+                                    }
+                                ]
+                   },
+                   {
+                       "Name":  "Critical events",
+                       "Category":  "Reliability",
+                       "Status":  "OK",
+                       "Value":  "No critical events in the last 24 hours",
+                       "Threshold":  "Warning at 1 event(s), critical at 5 (System and Application logs, level Critical)",
+                       "Detail":  "",
+                       "Data":  [
+
+                                ]
+                   },
+                   {
+                       "Name":  "Last update installed",
+                       "Category":  "Security",
+                       "Status":  "OK",
+                       "Value":  "KB5124010 installed 2026-09-24 (3 days ago)",
+                       "Threshold":  "Warning after 35 days, critical after 60 days",
+                       "Detail":  "",
+                       "Data":  {
+                                    "HotFixId":  "KB5124010",
+                                    "InstalledOn":  "2026-09-24",
+                                    "AgeDays":  3
+                                }
+                   },
+                   {
+                       "Name":  "BitLocker",
+                       "Category":  "Security",
+                       "Status":  "Unknown",
+                       "Value":  "",
+                       "Threshold":  "OS drive protection should be On (status when Off: Warning)",
+                       "Detail":  "BitLocker status could not be read (Access denied). Run the report as an administrator.",
+                       "Data":  null
+                   }
+               ],
+    "Thresholds":  {
+                       "BitLockerOffStatus":  "Warning",
+                       "MemoryUsedPercentWarning":  85,
+                       "StoppedServicesCritical":  5,
+                       "UpdateAgeDaysWarning":  35,
+                       "CriticalEventsCritical":  5,
+                       "UptimeDaysCritical":  30,
+                       "UpdateAgeDaysCritical":  60,
+                       "IgnoredServices":  [
+                                               "clr_optimization_*",
+                                               "edgeupdate*",
+                                               "gupdate*",
+                                               "GoogleUpdater*",
+                                               "MapsBroker",
+                                               "RemoteRegistry",
+                                               "sppsvc",
+                                               "tiledatamodelsvc",
+                                               "WslInstaller"
+                                           ],
+                       "EssentialServices":  [
+                                                 "Dhcp",
+                                                 "Dnscache",
+                                                 "EventLog",
+                                                 "LanmanWorkstation",
+                                                 "mpssvc",
+                                                 "Spooler",
+                                                 "Winmgmt"
+                                             ],
+                       "DelayedStartGraceMinutes":  10,
+                       "DiskFreePercentCritical":  10,
+                       "UptimeDaysWarning":  14,
+                       "MemoryUsedPercentCritical":  95,
+                       "StoppedServicesWarning":  1,
+                       "CriticalEventsWarning":  1,
+                       "DiskFreePercentWarning":  20
+                   }
+}

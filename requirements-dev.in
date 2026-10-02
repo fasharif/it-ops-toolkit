@@ -1,0 +1,4 @@
+# Lint and type-check tools for linux/lib/hrfeed.py.
+# Regenerate the lockfile with: pip-compile --generate-hashes requirements-dev.in
+mypy==2.3.1
+ruff==0.16.9

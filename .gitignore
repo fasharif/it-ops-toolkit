@@ -10,6 +10,15 @@ coverage.xml
 /delivery/
 /audit/
 *.secret
+onboarding-*.csv
+*_groups.csv
+*.cms
+health-*-????????T??????Z.html
+health-*-????????T??????Z.json
+
+# Real configuration and HR feeds; only the examples belong in the repository
+/config/onboarding.json
+/config/health-thresholds.json
 
 # Local configuration and credentials
 .env
@@ -22,3 +31,8 @@ coverage.xml
 *.swp
 .DS_Store
 Thumbs.db
+
+# Python tool caches
+__pycache__/
+.mypy_cache/
+.ruff_cache/

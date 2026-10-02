@@ -1,0 +1,48 @@
+# Integration test environment: a throwaway Samba AD domain controller and a client container
+# that runs the Bash onboarding and offboarding scripts against it. Nothing is published to
+# the host. Start it with tests/integration/run.sh, which also cleans up.
+#
+# There are no fixed container names: Compose names containers after the project, and run.sh
+# gives each run its own project name, so runs can happen side by side. ITO_TEST_IMAGE changes
+# the image names.
+
+name: it-ops-toolkit-it
+
+services:
+  dc:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile
+      target: dc
+    image: ${ITO_TEST_IMAGE:-it-ops-toolkit-test}:dc
+    hostname: dc1
+    environment:
+      SAMBA_REALM: CORP.ITOPS.TEST
+      SAMBA_DOMAIN: CORP
+      SAMBA_ADMIN_PASSWORD: ${SAMBA_ADMIN_PASSWORD:?Run tests/integration/run.sh, which sets it}
+    mem_limit: 768m
+    healthcheck:
+      # The rootDSE answers anonymous reads once the LDAP server is up.
+      test: ["CMD", "ldbsearch", "-H", "ldap://localhost", "-s", "base", "-b", "", "defaultNamingContext"]
+      interval: 5s
+      timeout: 10s
+      retries: 36
+      start_period: 20s
+
+  client:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile
+      target: test
+    image: ${ITO_TEST_IMAGE:-it-ops-toolkit-test}:test
+    depends_on:
+      dc:
+        condition: service_healthy
+    environment:
+      SAMBA_ADMIN_PASSWORD: ${SAMBA_ADMIN_PASSWORD:?Run tests/integration/run.sh, which sets it}
+      ITO_LDAP_URL: ldap://dc
+    volumes:
+      - ../..:/work:ro
+    working_dir: /work
+    command: ["--print-output-on-failure", "tests/integration"]
+    mem_limit: 512m

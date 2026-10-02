@@ -1,0 +1,24 @@
+# Pester in Windows PowerShell 5.1: record of one run
+#
+# Date:        2026-09-27
+# Commit:      4b6ff77 of the feature/initial-build branch, from a fresh clone
+# Runner:      PowerShell 5.1.26100.9549 (Desktop) on Microsoft Windows NT 10.0.26200.0
+# Environment: Windows 11 Home, .NET Framework 4.8.1, not elevated; Pester 5.9.1, the
+#              hash-checked copy that scripts/Invoke-Tests.ps1 -Install downloaded in the
+#              container run, copied into out/modules of a second clone at a short path
+#              (Pester's DLL does not load from paths over 260 characters)
+# Command:     powershell -ExecutionPolicy Bypass -File scripts\Invoke-Tests.ps1 -Stage Test -MinimumCoverage 80
+# NUnit file:  out/pester-desktop.xml (total 218, failures 0, errors 0, skipped 3)
+#
+# The two summary lines below are copied from the run's output; the test durations that
+# Pester prints were left out, because the machine was busy with other work.
+
+Tests Passed: 215, Failed: 0, Skipped: 3, Inconclusive: 0, NotRun: 0
+Command coverage of src/ItOpsToolkit (Pester): 88.0% (1714 of 1948 commands)
+
+Passed: 215
+Failed: 0
+Skipped: 3 (see docs/decisions.md, decision 9)
+  Onboarding configuration.matches the JSON schema
+  New-ItoUser.password handling.writes delivery files that openssl can decrypt too, for service desks on Linux
+  New-ItoUser.password handling.finds a certificate in the CurrentUser personal store by thumbprint

@@ -1,0 +1,20 @@
+# Recorded by scripts/make-samples.sh on 2026-09-27 in the Samba AD integration environment (tests/integration): a throwaway test domain on Samba 4.22.11-Debian-4.22.11+dfsg-0+deb13u1, with the scripts run in the Debian 13 client container; ITO_LDAP_URL and ITO_AUTH_FILE are set there.
+$ linux/onboard-user.sh --csv examples/new-starters.csv --config config/onboarding.example.json --deliver-dir /srv/it-ops/deliver --deliver-cert /srv/it-ops/delivery.pem
+Row  Account               Status   Message
+1    sara.ali              Created  Created sara.ali@corp.itops.test in OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test.
+2    sara.ali2             Created  Created sara.ali2@corp.itops.test in OU=Sales,OU=Staff,DC=corp,DC=itops,DC=test.
+3    jose.garcialopez      Created  Created jose.garcialopez@corp.itops.test in OU=IT,OU=Staff,DC=corp,DC=itops,DC=test.
+4    liam.obrien           Created  Created liam.obrien@corp.itops.test in OU=Human Resources,OU=Staff,DC=corp,DC=itops,DC=test.
+5    aisha.almansoori      Created  Created aisha.almansoori@corp.itops.test in OU=Finance,OU=Staff,DC=corp,DC=itops,DC=test.
+
+Onboarding summary: 5 created.
+
+$ linux/onboard-user.sh --csv examples/new-starters.csv --config config/onboarding.example.json --deliver-dir /srv/it-ops/deliver --deliver-cert /srv/it-ops/delivery.pem
+Row  Account               Status   Message
+1    sara.ali              Exists   An account with employee ID E10421 already exists (sara.ali). No changes were made.
+2    sara.ali2             Exists   An account with employee ID E10422 already exists (sara.ali2). No changes were made.
+3    jose.garcialopez      Exists   An account with employee ID E10423 already exists (jose.garcialopez). No changes were made.
+4    liam.obrien           Exists   An account with employee ID E10424 already exists (liam.obrien). No changes were made.
+5    aisha.almansoori      Exists   An account with employee ID E10425 already exists (aisha.almansoori). No changes were made.
+
+Onboarding summary: 5 exists.
